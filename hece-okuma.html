@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hece Okuma Oyunu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@700;800&display=swap">
+<style>
+/* Düzen: tek ekran. Üstte ad ve yıldız şeridi, ortada kılavuz çizgili defter satırında hece, altta başparmak hizasında mikrofon. */
+:root{
+  --kagit:#F4F7FC;       /* sayfa zemini: defter kâğıdı */
+  --yaprak:#FFFFFF;      /* hece kartı */
+  --murekkep:#1C2640;    /* hece ve ana metin */
+  --soluk:#56627F;       /* ikincil metin */
+  --cizgi:#C9D7EE;       /* kılavuz çizgileri */
+  --cizgi-koyu:#8EA8D6;  /* taban ve orta çizgi */
+  --kenar:#E98A8A;       /* defterin kırmızı kenar çizgisi */
+  --mikrofon:#EB5530;
+  --mikrofon-yazi:#FFFFFF;
+  --yildiz:#FFB000;
+  --yildiz-bos:#D7E1F1;
+  --dogru:#13985A;
+  --tekrar:#6A52D8;
+  --golge:rgba(28,38,64,.18);
+  --perde:rgba(244,247,252,.95);
+  --yazi-hece:"Andika","Comic Sans MS","Chalkboard SE",sans-serif;
+  --yazi-baslik:"Baloo 2","Andika",system-ui,sans-serif;
+  --yazi-govde:"Andika",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --kagit:#0E1424; --yaprak:#172036; --murekkep:#EEF3FF; --soluk:#A3B0CF;
+    --cizgi:#2B3A5E; --cizgi-koyu:#4D689C; --kenar:#B85E5E;
+    --mikrofon:#FF6A43; --mikrofon-yazi:#FFFFFF;
+    --yildiz:#FFC22E; --yildiz-bos:#2A3757; --dogru:#3CC983; --tekrar:#A08DFF;
+    --golge:rgba(0,0,0,.5); --perde:rgba(14,20,36,.95);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --kagit:#0E1424; --yaprak:#172036; --murekkep:#EEF3FF; --soluk:#A3B0CF;
+  --cizgi:#2B3A5E; --cizgi-koyu:#4D689C; --kenar:#B85E5E;
+  --mikrofon:#FF6A43; --mikrofon-yazi:#FFFFFF;
+  --yildiz:#FFC22E; --yildiz-bos:#2A3757; --dogru:#3CC983; --tekrar:#A08DFF;
+  --golge:rgba(0,0,0,.5); --perde:rgba(14,20,36,.95);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--kagit);color:var(--murekkep);
+  font-family:var(--yazi-govde);font-size:16px;line-height:1.45;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.gorunmez{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.uygulama{
+  min-height:100%;max-width:560px;margin-inline:auto;
+  display:flex;flex-direction:column;gap:clamp(10px,2.2vh,20px);
+  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));
+  padding-block:calc(env(safe-area-inset-top,0px) + 14px) calc(env(safe-area-inset-bottom,0px) + 16px);
+}
+
+/* Üst şerit */
+.ust{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ad{margin:0;font-family:var(--yazi-baslik);font-weight:800;font-size:1.55rem;line-height:1}
+.raf{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:999px;
+  background:var(--yaprak);box-shadow:0 1px 3px var(--golge);
+  font-weight:700;font-variant-numeric:tabular-nums;
+}
+.raf .emoji{font-size:1.45rem;line-height:1}
+
+/* Uyarı (sesli kontrol yoksa) */
+.uyari{
+  padding:12px 14px;border-radius:16px;background:var(--yaprak);
+  border:1.5px solid var(--cizgi);font-size:.93rem;line-height:1.4;
+}
+.uyari strong{display:block;margin-bottom:2px}
+
+/* Yıldızlar */
+.yildizlar{list-style:none;margin:0;padding:0;display:flex;justify-content:center;gap:clamp(4px,2vw,12px)}
+.yildiz{width:clamp(34px,11vw,48px);aspect-ratio:1;max-width:100%}
+.yildiz svg{display:block;width:100%;height:100%;overflow:visible}
+.yildiz polygon{fill:var(--yildiz-bos);stroke:var(--yildiz-bos);stroke-width:2;stroke-linejoin:round;transition:fill .25s,stroke .25s}
+.yildiz.dolu polygon{fill:var(--yildiz);stroke:var(--yildiz)}
+.yildiz.yeni svg{animation:parla .6s cubic-bezier(.2,1.6,.4,1)}
+@keyframes parla{from{transform:scale(.3) rotate(-35deg)}to{transform:none}}
+
+/* Hece kartı: defter satırı */
+.kart{
+  position:relative;flex:1 1 0;min-height:220px;
+  display:grid;place-items:center;overflow:hidden;
+  background:var(--yaprak);border-radius:28px;
+  box-shadow:0 1px 0 var(--golge),0 18px 40px -24px var(--golge);
+}
+.kart canvas{display:block;max-width:100%}
+.kart.giris canvas{animation:giris .45s cubic-bezier(.2,.9,.3,1.15)}
+@keyframes giris{from{opacity:0;transform:translateX(16%) scale(.96)}to{opacity:1;transform:none}}
+.kart.salla{animation:salla .45s}
+@keyframes salla{0%,100%{transform:none}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(3px)}}
+.damga{
+  position:absolute;top:14px;right:14px;width:52px;height:52px;border-radius:50%;
+  display:grid;place-items:center;background:var(--dogru);color:var(--yaprak);
+  opacity:0;pointer-events:none;
+}
+.damga svg{width:28px;height:28px}
+.kart.basarili .damga{animation:damga 1.4s ease forwards}
+@keyframes damga{0%{opacity:0;transform:scale(.3) rotate(-25deg)}22%{opacity:1;transform:scale(1.12) rotate(4deg)}38%{transform:none}85%{opacity:1}100%{opacity:0}}
+
+/* Durum satırı */
+.durum{
+  margin:0;min-height:58px;display:grid;place-items:center;text-align:center;
+  font-size:1.12rem;color:var(--soluk);text-wrap:balance;
+}
+.durum[data-tur="iyi"]{font-family:var(--yazi-baslik);font-weight:800;font-size:2.1rem;line-height:1;color:var(--dogru);animation:zipla .5s cubic-bezier(.2,1.6,.4,1)}
+.durum[data-tur="tekrar"]{color:var(--tekrar);font-weight:700}
+@keyframes zipla{from{transform:scale(.6)}to{transform:none}}
+
+/* Mikrofon */
+.eylem{display:grid;justify-items:center;gap:8px}
+.mikrofon{
+  position:relative;width:clamp(88px,24vw,108px);aspect-ratio:1;border:0;border-radius:50%;
+  display:grid;place-items:center;cursor:pointer;touch-action:manipulation;
+  background:var(--mikrofon);color:var(--mikrofon-yazi);
+  box-shadow:0 14px 26px -12px var(--mikrofon),inset 0 -4px 0 var(--golge);
+  transition:transform .12s,background-color .2s,opacity .2s;
+}
+.mikrofon svg{width:44%;height:44%}
+.mikrofon:active{transform:scale(.95)}
+.mikrofon:focus-visible{outline:4px solid var(--cizgi-koyu);outline-offset:4px}
+.mikrofon:disabled{opacity:.45;cursor:default}
+.mikrofon.dinliyor{box-shadow:0 0 0 8px var(--cizgi)}
+.mikrofon.dinliyor::before,.mikrofon.dinliyor::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  border:3px solid var(--mikrofon);animation:halka 1.4s ease-out infinite;
+}
+.mikrofon.dinliyor::after{animation-delay:.7s}
+@keyframes halka{from{transform:scale(1);opacity:.75}to{transform:scale(1.65);opacity:0}}
+.mikrofon.onayla{background:var(--dogru);box-shadow:0 14px 26px -12px var(--dogru),inset 0 -4px 0 var(--golge)}
+.mik-etiket{font-size:.95rem;font-weight:700;color:var(--soluk)}
+
+/* Ebeveyn satırı */
+.ebeveyn{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;min-height:44px;font-size:.9rem;color:var(--soluk)}
+.duyulan{min-width:0;overflow-wrap:anywhere}
+.onay{
+  position:relative;overflow:hidden;border:1.5px dashed var(--cizgi-koyu);border-radius:999px;
+  background:transparent;color:var(--soluk);padding:8px 14px;font-size:.9rem;cursor:pointer;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;
+}
+.onay::before{content:"";position:absolute;inset:0;background:var(--dogru);opacity:.25;transform:scaleX(0);transform-origin:left}
+.onay.basili::before{transform:scaleX(1);transition:transform .8s linear}
+.onay span{position:relative}
+.onay:focus-visible{outline:3px solid var(--cizgi-koyu);outline-offset:3px}
+
+/* Tur sonu ödülü */
+.perde{
+  position:fixed;inset:0;z-index:20;display:grid;place-items:center;overflow:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 24px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px));
+  background:var(--perde);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.odul{width:min(100%,420px);display:grid;justify-items:center;gap:12px;text-align:center}
+.odul-cikartma{font-size:clamp(96px,30vw,140px);line-height:1;animation:sicra .8s cubic-bezier(.2,1.6,.4,1)}
+@keyframes sicra{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
+.odul h2{margin:0;font-family:var(--yazi-baslik);font-weight:800;font-size:2.3rem;line-height:1.05;text-wrap:balance}
+.odul p{margin:0;color:var(--soluk)}
+.raf-izgara{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:100%;max-height:26vh;overflow:auto;
+  padding:10px 12px;border-radius:18px;background:var(--yaprak);font-size:1.8rem;line-height:1.1;
+}
+.raf-izgara .yeni{animation:sicra .8s .35s both cubic-bezier(.2,1.6,.4,1)}
+.buyuk-dugme{
+  border:0;border-radius:999px;padding:14px 36px;cursor:pointer;
+  background:var(--mikrofon);color:var(--mikrofon-yazi);
+  font-family:var(--yazi-baslik);font-weight:800;font-size:1.35rem;
+  box-shadow:0 12px 24px -12px var(--mikrofon);
+}
+.buyuk-dugme:focus-visible{outline:4px solid var(--cizgi-koyu);outline-offset:4px}
+
+.konfeti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+
+@media (max-height:600px){.kart{min-height:170px}.durum{min-height:48px}}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="uygulama">
+  <header class="ust">
+    <h1 class="ad">Hece Okuma</h1>
+    <div class="raf" role="status" aria-live="polite">
+      <span class="emoji" id="rafSon" aria-hidden="true">🎁</span>
+      <span id="rafSayi">0</span><span class="gorunmez"> çıkartma</span>
+    </div>
+  </header>
+
+  <div class="uyari" id="uyari" role="note" hidden>
+    <strong>Sesli kontrol bu ekranda çalışmıyor.</strong>
+    <span id="uyariMetin"></span>
+  </div>
+
+  <ol class="yildizlar" id="yildizlar" aria-label="Bu turdaki yıldızlar"></ol>
+
+  <main class="kart" id="kart">
+    <canvas id="hece" role="img" aria-label="Hece"></canvas>
+    <div class="damga" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+    </div>
+  </main>
+
+  <p class="durum" id="durum" aria-live="polite"></p>
+
+  <div class="eylem">
+    <button type="button" class="mikrofon" id="mikrofon" aria-label="Dinlemeye başla">
+      <svg id="ikonMik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="2.5" width="6" height="12" rx="3" fill="currentColor" stroke="none"/>
+        <path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/>
+      </svg>
+      <svg id="ikonOnay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+        <path d="M5 12.5l4.5 4.5L19 7.5"/>
+      </svg>
+    </button>
+    <span class="mik-etiket" id="mikEtiket">Dokun ve oku</span>
+  </div>
+
+  <div class="ebeveyn">
+    <span class="duyulan" id="duyulan"></span>
+    <button type="button" class="onay" id="onay" hidden><span>Ebeveyn: basılı tut, doğru say</span></button>
+  </div>
+</div>
+
+<div class="perde" id="perde" role="dialog" aria-modal="true" aria-labelledby="perdeBaslik" hidden>
+  <div class="odul">
+    <div class="odul-cikartma" id="perdeCikartma" aria-hidden="true"></div>
+    <h2 id="perdeBaslik">Tebrikler!</h2>
+    <p>Bütün heceleri okudun, yeni bir çıkartma kazandın.</p>
+    <div class="raf-izgara" id="perdeRaf" aria-label="Çıkartma rafı"></div>
+    <button type="button" class="buyuk-dugme" id="yeniTur">Yeni tur</button>
+  </div>
+</div>
+
+<canvas class="konfeti" id="konfeti" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  "use strict";
+
+  // Yeni harfler öğrenildikçe heceleri bu listeye ekleyin.
+  const HECELER = ["a", "an", "na", "nan", "ana", "e"];
+  const OVGULER = ["Aferin!", "Harika!", "Süpersin!", "Bravo!", "Çok güzel!"];
+  const CIKARTMALAR = ["🦁","🐼","🦊","🐸","🐯","🐨","🐰","🐻","🦉","🐢","🐙","🦋","🐞","🐬","🦄","🐧","🐳","🦒","🐝","🦕"];
+  const KAYIT = "hece-okuma-cikartmalar";
+
+  /*ESLESTIRME-BASLA*/
+  // Duyulan metni sadeleştirir: küçük harf, noktalama yok, kelimelere böl.
+  function temizle(metin) {
+    return String(metin || "")
+      .toLocaleLowerCase("tr-TR")
+      .normalize("NFD").replace(/[̀-̂]/g, "").normalize("NFC")
+      .replace(/[^a-zçğıöşü\s]/g, " ")
+      .trim().split(/\s+/).filter(Boolean);
+  }
+  // Tanıyıcının eklediği h seslerini (ha, ah) ve uzatmaları (aaa, naan) tolere eder.
+  function kanonik(kelime, hedef) {
+    let k = kelime;
+    if (!hedef.startsWith("h")) k = k.replace(/^h+/, "");
+    if (!hedef.endsWith("h")) k = k.replace(/h+$/, "");
+    return k.replace(/(.)\1+/g, "$1");
+  }
+  function esit(kelime, hedef) {
+    const k = kanonik(kelime, hedef), h = kanonik(hedef, hedef);
+    if (!k || !h) return false;
+    if (k === h) return true;
+    return k.length > h.length && k.length % h.length === 0 && k === h.repeat(k.length / h.length);
+  }
+  // Tek bir tanıma sonucu hedef heceyle uyuşuyor mu?
+  function dogruMu(metin, hedef, liste) {
+    const kelimeler = temizle(metin);
+    if (!kelimeler.length) return false;
+    const digerleri = liste.filter((h) => h !== hedef);
+    const birlesik = kelimeler.join("");
+    if (esit(birlesik, hedef)) return true;                                   // "a na" -> ana
+    if (kelimeler.length > 1 && digerleri.some((h) => esit(birlesik, h))) return false;
+    const hedefVar = kelimeler.some((k) => esit(k, hedef));
+    const baskaVar = kelimeler.some((k) => digerleri.some((h) => esit(k, h)));
+    return hedefVar && !baskaVar;
+  }
+  // En olası sonuç başka bir heceyse (an yerine na gibi) yanlış sayılır; değilse diğer tahminlere de bakılır.
+  function degerlendir(alternatifler, hedef, liste) {
+    const ust = alternatifler[0] || "";
+    if (dogruMu(ust, hedef, liste)) return true;
+    if (liste.some((h) => h !== hedef && dogruMu(ust, h, liste))) return false;
+    return alternatifler.slice(1).some((a) => dogruMu(a, hedef, liste));
+  }
+  /*ESLESTIRME-BITIS*/
+
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    kart: $("kart"), hece: $("hece"), durum: $("durum"), mikrofon: $("mikrofon"),
+    ikonMik: $("ikonMik"), ikonOnay: $("ikonOnay"), mikEtiket: $("mikEtiket"),
+    duyulan: $("duyulan"), onay: $("onay"), uyari: $("uyari"), uyariMetin: $("uyariMetin"),
+    yildizlar: $("yildizlar"), rafSon: $("rafSon"), rafSayi: $("rafSayi"),
+    perde: $("perde"), perdeCikartma: $("perdeCikartma"), perdeRaf: $("perdeRaf"),
+    yeniTur: $("yeniTur"), konfeti: $("konfeti")
+  };
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const azHareket = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const YILDIZ_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2.6 15.09 8.26 21.6 9.27 16.9 13.94 18.08 20.62 12 17.47 5.92 20.62 7.1 13.94 2.4 9.27 8.91 8.26"/></svg>';
+
+  let sira = [], idx = 0, yildiz = 0, mesgul = false, mod = "ses", sonHece = null, tanima = null, vurguRenk = null;
+  let raf = rafOku();
+
+  const token = (ad) => getComputedStyle(document.documentElement).getPropertyValue(ad).trim();
+  const rastgele = (d) => d[Math.floor(Math.random() * d.length)];
+
+  // ——— Ödül rafı (bu tarayıcıda saklanır) ———
+  function rafOku() {
+    try {
+      const v = JSON.parse(localStorage.getItem(KAYIT) || "[]");
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(-300) : [];
+    } catch (_) { return []; }
+  }
+  function rafYaz() { try { localStorage.setItem(KAYIT, JSON.stringify(raf)); } catch (_) {} }
+  function rafGoster() {
+    el.rafSon.textContent = raf.length ? raf[raf.length - 1] : "🎁";
+    el.rafSayi.textContent = String(raf.length);
+  }
+
+  // ——— Sesler (Web Audio, dosya gerektirmez) ———
+  const ses = (() => {
+    let ctx = null;
+    function hazir() {
+      try {
+        if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
+        if (ctx.state === "suspended") ctx.resume();
+      } catch (_) { return null; }
+      return ctx;
+    }
+    function nota(frekans, gecikme, sure, tip, hacim) {
+      const c = hazir(); if (!c) return;
+      const t = c.currentTime + gecikme;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = tip || "triangle";
+      o.frequency.setValueAtTime(frekans, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(hacim || 0.18, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + sure + 0.05);
+    }
+    return {
+      hazir,
+      basari() { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => nota(f, i * 0.085, 0.35)); },
+      tekrar() { nota(392, 0, 0.22, "sine", 0.12); nota(329.63, 0.16, 0.32, "sine", 0.12); },
+      fanfar() {
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => nota(f, i * 0.12, 0.3, "triangle", 0.2));
+        [523.25, 659.25, 783.99, 1046.5].forEach((f) => nota(f, 0.52, 1.2, "triangle", 0.09));
+      }
+    };
+  })();
+
+  // ——— Heceyi kılavuz çizgili defter satırına çiz ———
+  function heceyiCiz() {
+    const c = el.hece, ctx = c.getContext("2d");
+    const w = Math.max(200, Math.floor(el.kart.clientWidth));
+    const kartH = el.kart.clientHeight;
+    const aile = token("--yazi-hece") || "sans-serif";
+    const metin = sira[idx] || "";
+    let boy = Math.min(w * 0.34, 210);
+    if (kartH > 0) boy = Math.min(boy, (kartH - 24) / 1.5);
+    boy = Math.max(56, boy);
+    ctx.font = `700 ${boy}px ${aile}`;
+    const genislik = ctx.measureText(metin).width;
+    if (genislik > w * 0.72) boy *= (w * 0.72) / genislik;
+    const yazi = `700 ${boy}px ${aile}`;
+    ctx.font = yazi;
+    const xYuk = ctx.measureText("x").actualBoundingBoxAscent || boy * 0.5;
+    const ustYuk = ctx.measureText("l").actualBoundingBoxAscent || boy * 0.72;
+    const altYuk = ctx.measureText("g").actualBoundingBoxDescent || boy * 0.22;
+    const bosluk = Math.round(boy * 0.16);
+    const h = Math.ceil(ustYuk + altYuk + bosluk * 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    c.style.width = w + "px"; c.style.height = h + "px";
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const taban = bosluk + ustYuk;
+    const yatay = (y) => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); };
+    ctx.strokeStyle = token("--cizgi"); ctx.lineWidth = Math.max(1, boy / 90);
+    yatay(taban - ustYuk);
+    yatay(taban + altYuk);
+    ctx.strokeStyle = token("--cizgi-koyu");
+    ctx.setLineDash([boy * 0.06, boy * 0.06]);
+    yatay(taban - xYuk);
+    ctx.setLineDash([]);
+    ctx.lineWidth = Math.max(1.5, boy / 60);
+    yatay(taban);
+    const kenarX = Math.round(w * 0.09) + 0.5;
+    ctx.strokeStyle = token("--kenar"); ctx.lineWidth = Math.max(1.5, boy / 85);
+    ctx.beginPath(); ctx.moveTo(kenarX, 0); ctx.lineTo(kenarX, h); ctx.stroke();
+
+    ctx.font = yazi;
+    ctx.fillStyle = vurguRenk || token("--murekkep");
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(metin, (kenarX + w) / 2, taban);
+  }
+  let cizimBekliyor = false;
+  function yenidenCiz() {
+    if (cizimBekliyor) return;
+    cizimBekliyor = true;
+    requestAnimationFrame(() => { cizimBekliyor = false; heceyiCiz(); });
+  }
+
+  // ——— Yıldızlar ———
+  function yildizlariCiz() {
+    el.yildizlar.innerHTML = "";
+    for (let i = 0; i < sira.length; i++) {
+      const li = document.createElement("li");
+      li.className = "yildiz" + (i < yildiz ? " dolu" : "");
+      li.innerHTML = YILDIZ_SVG;
+      el.yildizlar.appendChild(li);
+    }
+    el.yildizlar.setAttribute("aria-label", `Bu tur ${yildiz} / ${sira.length} yıldız`);
+  }
+  function yildizEkle() {
+    yildiz++;
+    const li = el.yildizlar.children[yildiz - 1];
+    if (li) { li.classList.add("dolu", "yeni"); setTimeout(() => li.classList.remove("yeni"), 700); }
+    el.yildizlar.setAttribute("aria-label", `Bu tur ${yildiz} / ${sira.length} yıldız`);
+  }
+
+  // ——— Akış ———
+  function karistir(d) {
+    for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+    return d;
+  }
+  function durum(metin, tur) { el.durum.textContent = metin; el.durum.dataset.tur = tur || ""; }
+  function bosDurum() {
+    durum(mod === "ses" ? "Mikrofona dokun, heceyi oku." : "Çocuk heceyi okusun; doğruysa ✓ tuşuna basın.");
+  }
+  function animasyon(sinif) {
+    el.kart.classList.remove(sinif); void el.kart.offsetWidth; el.kart.classList.add(sinif);
+  }
+  function yeniTur() {
+    sira = karistir(HECELER.slice());
+    if (sira.length > 1 && sira[0] === sonHece) [sira[0], sira[1]] = [sira[1], sira[0]];
+    idx = 0; yildiz = 0;
+    yildizlariCiz();
+    heceGoster();
+  }
+  function heceGoster() {
+    const hedef = sira[idx];
+    sonHece = hedef;
+    vurguRenk = null;
+    el.kart.classList.remove("basarili");
+    el.hece.setAttribute("aria-label", "Hece: " + hedef);
+    heceyiCiz();
+    animasyon("giris");
+    bosDurum();
+    el.duyulan.textContent = "";
+    el.onay.hidden = true;
+    mesgul = false;
+    el.mikrofon.disabled = false;
+  }
+  function basari() {
+    if (mesgul) return;
+    mesgul = true;
+    el.mikrofon.disabled = true;
+    el.onay.hidden = true;
+    el.duyulan.textContent = "";
+    ses.basari();
+    yildizEkle();
+    vurguRenk = token("--dogru");
+    heceyiCiz();
+    animasyon("basarili");
+    durum(rastgele(OVGULER), "iyi");
+    konfeti(el.kart, 70);
+    setTimeout(() => {
+      idx++;
+      if (idx >= sira.length) turBitti(); else heceGoster();
+    }, 1500);
+  }
+  function tekrar(duyulan, mesaj) {
+    ses.tekrar();
+    animasyon("salla");
+    durum(mesaj || "Bir daha deneyelim!", "tekrar");
+    const k = String(duyulan || "").trim();
+    el.duyulan.textContent = k ? `Duyduğum: “${k.length > 40 ? k.slice(0, 40) + "…" : k}”` : "";
+    if (mod === "ses") el.onay.hidden = false;
+  }
+  function turBitti() {
+    const yeniler = CIKARTMALAR.filter((c) => !raf.includes(c));
+    const kazanilan = rastgele(yeniler.length ? yeniler : CIKARTMALAR);
+    raf.push(kazanilan);
+    rafYaz(); rafGoster();
+    el.perdeCikartma.textContent = kazanilan;
+    el.perdeRaf.innerHTML = "";
+    raf.forEach((c, i) => {
+      const s = document.createElement("span");
+      s.textContent = c;
+      if (i === raf.length - 1) s.className = "yeni";
+      el.perdeRaf.appendChild(s);
+    });
+    el.perde.hidden = false;
+    ses.fanfar();
+    konfeti(null, 150);
+    el.yeniTur.focus();
+  }
+  el.yeniTur.addEventListener("click", () => { el.perde.hidden = true; yeniTur(); });
+
+  // ——— Ses tanıma ———
+  function dinlemeDurumu(acik) {
+    el.mikrofon.classList.toggle("dinliyor", acik);
+    el.mikrofon.setAttribute("aria-label", acik ? "Dinlemeyi bitir" : "Dinlemeye başla");
+    el.mikEtiket.textContent = acik ? "Dinliyorum…" : "Dokun ve oku";
+    if (acik) { durum("Şimdi oku!"); el.duyulan.textContent = ""; el.onay.hidden = true; }
+  }
+  function dinle() {
+    if (mesgul) return;
+    if (tanima) { try { tanima.stop(); } catch (_) {} return; }
+    ses.hazir();
+    const r = new SR();
+    r.lang = "tr-TR"; r.continuous = false; r.interimResults = true; r.maxAlternatives = 5;
+    const hedef = sira[idx];
+    let bitti = false, sonAra = null, hata = null, sessizlik = null, sigorta = null;
+
+    const bitir = () => {
+      clearTimeout(sessizlik); clearTimeout(sigorta);
+      if (tanima === r) tanima = null;
+      dinlemeDurumu(false);
+    };
+    const sonuclandir = (alts) => {
+      if (bitti) return;
+      bitti = true;
+      bitir();
+      try { r.abort(); } catch (_) {}
+      if (degerlendir(alts, hedef, HECELER)) basari(); else tekrar(alts[0]);
+    };
+
+    r.onstart = () => {
+      dinlemeDurumu(true);
+      sigorta = setTimeout(() => { try { r.stop(); } catch (_) {} }, 8000);
+    };
+    r.onresult = (e) => {
+      const sonuc = e.results[e.results.length - 1];
+      if (!sonuc) return;
+      const alts = Array.from(sonuc, (a) => a.transcript).filter((t) => t && t.trim());
+      if (!alts.length) return;
+      if (sonuc.isFinal) { sonuclandir(alts); return; }
+      sonAra = alts;
+      clearTimeout(sessizlik);
+      sessizlik = setTimeout(() => { try { r.stop(); } catch (_) {} }, 1300);
+    };
+    r.onnomatch = () => { hata = hata || "no-match"; };
+    r.onerror = (e) => { hata = e.error || "bilinmiyor"; };
+    r.onend = () => {
+      if (bitti) { if (tanima === r) tanima = null; return; }
+      if (sonAra) { sonuclandir(sonAra); return; }
+      bitti = true;
+      bitir();
+      hataGoster(hata);
+    };
+
+    tanima = r;
+    try { r.start(); } catch (_) { bitti = true; bitir(); hataGoster("baslamadi"); }
+  }
+  function hataGoster(hata) {
+    switch (hata) {
+      case "not-allowed":
+      case "service-not-allowed":
+        ebeveynModu("Mikrofon izni verilmedi ya da bu ekran mikrofona izin vermiyor. Sayfayı Chrome'da (bilgisayar, Android) veya Safari'de (iPhone, iPad) açıp mikrofona izin verin.");
+        break;
+      case "language-not-supported":
+        ebeveynModu("Bu cihazda Türkçe ses tanıma yok.");
+        break;
+      case "audio-capture":
+        durum("Mikrofon bulunamadı. Mikrofonu kontrol edip tekrar dokunun.", "tekrar");
+        break;
+      case "network":
+        durum("Ses tanıma için internet bağlantısı gerekiyor.", "tekrar");
+        break;
+      case "aborted":
+        bosDurum();
+        break;
+      case "no-match":
+        tekrar("", "Tam anlayamadım, bir daha oku.");
+        break;
+      case "baslamadi":
+        durum("Dinleme başlamadı, tekrar dokunun.", "tekrar");
+        break;
+      default:
+        tekrar("", "Seni duyamadım. Biraz daha yüksek sesle oku.");
+    }
+  }
+  function ebeveynModu(neden) {
+    mod = "ebeveyn";
+    el.uyariMetin.textContent = neden + " Şimdilik çocuk doğru okuyunca ✓ tuşuna siz basın.";
+    el.uyari.hidden = false;
+    el.mikrofon.classList.add("onayla");
+    el.mikrofon.setAttribute("aria-label", "Doğru okudu");
+    el.ikonMik.setAttribute("hidden", ""); el.ikonOnay.removeAttribute("hidden");
+    el.mikEtiket.textContent = "Doğru okudu";
+    el.onay.hidden = true;
+    el.duyulan.textContent = "";
+    bosDurum();
+  }
+
+  el.mikrofon.addEventListener("click", () => {
+    if (mod === "ses") dinle(); else { ses.hazir(); basari(); }
+  });
+  // Ebeveyn düzeltmesi: tanıyıcı yanılırsa basılı tutunca doğru sayılır.
+  let basiliSayac = null;
+  const birak = () => { clearTimeout(basiliSayac); el.onay.classList.remove("basili"); };
+  el.onay.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (mesgul) return;
+    el.onay.classList.add("basili");
+    basiliSayac = setTimeout(() => { birak(); basari(); }, 800);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((t) => el.onay.addEventListener(t, birak));
+  el.onay.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.onay.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); basari(); }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && tanima) { try { tanima.abort(); } catch (_) {} }
+  });
+
+  // ——— Konfeti ———
+  let konfetiKare = 0;
+  function konfeti(kaynak, adet) {
+    if (azHareket.matches) return;
+    const c = el.konfeti, ctx = c.getContext("2d");
+    const W = window.innerWidth, H = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const k = kaynak ? kaynak.getBoundingClientRect() : { left: 0, top: H * 0.35, width: W, height: 0 };
+    const renkler = ["--yildiz", "--dogru", "--mikrofon", "--tekrar", "--cizgi-koyu"].map(token);
+    const parcalar = Array.from({ length: adet }, () => ({
+      x: k.left + k.width / 2 + (Math.random() - 0.5) * k.width * 0.7,
+      y: k.top + k.height * 0.45,
+      vx: (Math.random() - 0.5) * 10, vy: -Math.random() * 10 - 4,
+      a: Math.random() * Math.PI, va: (Math.random() - 0.5) * 0.3,
+      s: 7 + Math.random() * 8, renk: rastgele(renkler), sekil: Math.floor(Math.random() * 3)
+    }));
+    const basla = performance.now(), omur = 1700;
+    cancelAnimationFrame(konfetiKare);
+    const kare = (t) => {
+      const gecen = t - basla;
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = Math.max(0, 1 - gecen / omur);
+      for (const p of parcalar) {
+        p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.a += p.va;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.renk;
+        if (p.sekil === 0) ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        else if (p.sekil === 1) { ctx.beginPath(); ctx.arc(0, 0, p.s / 2.6, 0, Math.PI * 2); ctx.fill(); }
+        else {
+          ctx.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const aci = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? p.s * 0.25 : p.s * 0.6;
+            ctx.lineTo(Math.cos(aci) * r, Math.sin(aci) * r);
+          }
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      }
+      if (gecen < omur) konfetiKare = requestAnimationFrame(kare);
+      else { ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H); }
+    };
+    konfetiKare = requestAnimationFrame(kare);
+  }
+
+  // ——— Başlangıç ———
+  rafGoster();
+  yeniTur();
+  if (!SR) ebeveynModu("Bu tarayıcı Türkçe sesli kontrolü desteklemiyor. Bilgisayarda veya Android'de Chrome, iPhone'da Safari kullanın.");
+  if (window.ResizeObserver) new ResizeObserver(yenidenCiz).observe(el.kart);
+  else window.addEventListener("resize", yenidenCiz);
+  if (document.fonts) {
+    document.fonts.load('700 100px "Andika"').then(yenidenCiz, () => {});
+    document.fonts.ready.then(yenidenCiz, () => {});
+  }
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", yenidenCiz);
+})();
+</script>
+</body>
+</html>
