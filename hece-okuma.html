@@ -298,11 +298,13 @@ button{font:inherit;color:inherit}
   const KAYIT = "hece-okuma-cikartmalar";
 
   /*ESLESTIRME-BASLA*/
-  // Telefonun ses tanıması tek heceyi çoğu zaman benzer bir kelimeye çevirir: a → "Ah", nan → "Nam", ana → "Ama".
-  // Kural: hecelerde geçen harfler (şimdilik a, n, e) birebir uymalı; listede olmayan harfler (h, ğ, y, m, l…)
-  // tanıma hatası sayılır ve yakın sese ucuza bağlanır. Böylece "an" ile "na", "a" ile "e" ayrı kalır.
-  const UNLU = "aeıioöuü";
-  const YAKIN = { mn: 0.3, ln: 0.5, nr: 0.5, lr: 0.5, bp: 0.5, dt: 0.5, gk: 0.5, "cç": 0.5, fv: 0.5, sz: 0.5, "jş": 0.5 };
+  // Telefonun ses tanıması tek heceyi çoğu zaman benzer bir kelimeye çevirir: a → "Ah", "O"; nan → "Nam"; ana → "Ama", "Bana".
+  // Kural: hecelerde geçen harfler (şimdilik a, n, e) birebir uymalı. Listede olmayan harfler (h, ğ, y, m, l, o, i…)
+  // çocuğun henüz bilmediği seslerdir, yani büyük olasılıkla tanıma hatasıdır; yakın sese ucuza bağlanır.
+  // Böylece "an" ile "na", "a" ile "e" ayrı kalır.
+  const UNLU = "aeıioöuü", ONLU = "eiöü";              // ön ünlüler e'ye, art ünlüler a'ya yakın
+  const YAKIN = { mn: 0.2, ln: 0.35, nr: 0.35, lr: 0.35, bp: 0.4, dt: 0.4, gk: 0.4, "cç": 0.4, fv: 0.4, sz: 0.4, "jş": 0.4 };
+  const OGRENILEN = Object.create(null);               // ebeveynin "doğru say" dediği duyulanlar: { nane: "nan" }
   function kelimeler(metin) {
     return String(metin || "")
       .toLocaleLowerCase("tr-TR")
@@ -316,14 +318,15 @@ button{font:inherit;color:inherit}
   }
   function fazlaBedel(x, harf) {                        // duyulanda fazladan bir harf
     if (harf.has(x)) return 1;
-    return x === "h" ? 0.2 : x === "y" ? 0.4 : 0.9;
+    return x === "h" ? 0.2 : x === "y" ? 0.3 : UNLU.includes(x) ? 0.7 : 0.6;
   }
   function yerineBedel(x, y, harf) {                    // y yerine x duyulmuş
     if (x === y) return 0;
     const xu = UNLU.includes(x), yu = UNLU.includes(y);
     if (xu !== yu) return 1.2;
-    if (xu || harf.has(x)) return 1;
-    return YAKIN[[x, y].sort().join("")] || 1;
+    if (harf.has(x)) return 1;
+    if (xu) return ONLU.includes(x) === ONLU.includes(y) ? 0.4 : 0.9;
+    return YAKIN[[x, y].sort().join("")] || 0.7;
   }
   function uzaklik(s, t, harf) {                        // ağırlıklı düzeltme uzaklığı
     let ust = [0];
@@ -340,8 +343,11 @@ button{font:inherit;color:inherit}
   function sinifla(kelime, liste, harf) {               // en yakın hece; emin değilse null
     const k = sade(kelime, harf);
     if (!k) return null;
+    const tam = liste.find((h) => sade(h, harf) === k);
+    if (tam) return tam;
+    if (liste.includes(OGRENILEN[k])) return OGRENILEN[k];
     const s = liste.map((h) => [h, uzaklik(k, sade(h, harf), harf)]).sort((p, q) => p[1] - q[1]);
-    const esik = s[0][0].length <= 2 ? 0.6 : 0.6 + 0.25 * (s[0][0].length - 2);
+    const L = s[0][0].length, esik = L === 1 ? 0.6 : L === 2 ? 0.7 : 0.9 + 0.2 * (L - 3);
     const ara = s.length > 1 ? s[1][1] - s[0][1] : Infinity;
     return s[0][1] <= esik + 1e-9 && ara >= 0.25 - 1e-9 ? s[0][0] : null;
   }
@@ -364,6 +370,22 @@ button{font:inherit;color:inherit}
     if (ust) return ust;
     return adaylar.slice(1).some((a) => karar(a, hedef, liste) === "dogru") ? "dogru" : null;
   }
+  function duyulanHece(metin, liste) {                  // duyulanın benzediği hece (ipucu için)
+    return sinifla(kelimeler(metin).join(""), liste, new Set(liste.join("")));
+  }
+  // Ebeveyn "doğru say" dediğinde öğrenilecek anahtar. Başka bir heceye benzeyen duyulan öğrenilmez,
+  // yoksa "an" ile "na" gibi ayrımlar bozulurdu.
+  function ogrenilecek(metin, hedef, liste) {
+    const k = sade(kelimeler(metin).join(""), new Set(liste.join("")));
+    return k && k.length <= 24 && karar(metin, hedef, liste) === null ? k : null;
+  }
+  function ipucu(hedef, duyulan) {                      // eksik ya da ters okumada ne yapmalı
+    if (!duyulan || duyulan === hedef) return "";
+    if (hedef.slice(0, -1) === duyulan) return `Sondaki “${hedef.slice(-1)}” sesini de söyle!`;
+    if (hedef.slice(1) === duyulan) return `Baştaki “${hedef[0]}” sesini de söyle!`;
+    if ([...hedef].reverse().join("") === duyulan) return "Soldan sağa doğru oku!";
+    return "";
+  }
   /*ESLESTIRME-BITIS*/
 
   const $ = (id) => document.getElementById(id);
@@ -381,6 +403,12 @@ button{font:inherit;color:inherit}
 
   let sira = [], idx = 0, yildiz = 0, mesgul = false, mod = "ses", sonHece = null, tanima = null, vurguRenk = null;
   let raf = rafOku();
+  const OGRENME_KAYIT = "hece-okuma-ogrenilen";
+  let sonDuyulan = "";
+  try {
+    const v = JSON.parse(localStorage.getItem(OGRENME_KAYIT) || "{}");
+    for (const [k, h] of Object.entries(v || {})) if (/^[a-zçğıöşü]{1,24}$/.test(k) && typeof h === "string") OGRENILEN[k] = h;
+  } catch (_) {}
   const sentez = window.speechSynthesis || null;
   let dinlendi = false, konusuyor = false, konusmaNo = 0;
 
@@ -543,6 +571,7 @@ button{font:inherit;color:inherit}
     animasyon("giris");
     bosDurum();
     el.duyulan.textContent = "";
+    sonDuyulan = "";
     el.onay.hidden = true;
     mesgul = false;
     el.mikrofon.disabled = konusuyor;
@@ -573,6 +602,7 @@ button{font:inherit;color:inherit}
     animasyon("salla");
     durum(mesaj || "Bir daha deneyelim!", "tekrar");
     const k = String(duyulan || "").trim();
+    sonDuyulan = k;
     el.duyulan.textContent = k ? `Duyduğum: “${k.length > 40 ? k.slice(0, 40) + "…" : k}”` : "";
     if (mod === "ses") el.onay.hidden = false;
   }
@@ -632,7 +662,7 @@ button{font:inherit;color:inherit}
       let k = degerlendir(son.adaylar, hedef, HECELER);
       if (!k && dogruGoruldu) k = "dogru";
       if (k === "dogru") basari();
-      else tekrar(son.metin, k === "yanlis" ? "" : "Tam anlayamadım, bir daha oku.");
+      else tekrar(son.metin, k === "yanlis" ? ipucu(hedef, duyulanHece(son.metin, HECELER)) : "Tam anlayamadım, bir daha oku.");
     };
     const durdur = () => {                    // dinlemeyi kapat, son sonucu kısa bir süre bekle
       if (bitti || durdu) return;
@@ -649,10 +679,10 @@ button{font:inherit;color:inherit}
 
     r.onstart = () => {
       dinlemeDurumu("hazirlan");
-      kur("hazir", 700, hazir);
+      kur("hazir", 800, hazir);
       kur("sigorta", 9000, durdur);
     };
-    r.onaudiostart = () => kur("hazir", 150, hazir);
+    r.onaudiostart = () => kur("hazir", 300, hazir);   // mikrofonun ilk anı çoğu zaman sessiz kalır
     r.onresult = (e) => {
       if (bitti) return;
       const once = [];
@@ -721,19 +751,31 @@ button{font:inherit;color:inherit}
     if (konusuyor) return;
     if (mod === "ses") dinle(); else { ses.hazir(); basari(); }
   });
-  // Ebeveyn düzeltmesi: tanıyıcı yanılırsa basılı tutunca doğru sayılır.
+  // Ebeveyn düzeltmesi: tanıyıcı yanılırsa basılı tutunca doğru sayılır ve duyulan bu hece için öğrenilir.
+  function ebeveynOnayi() {
+    if (mesgul) return;
+    const hedef = sira[idx];
+    const k = sonDuyulan ? ogrenilecek(sonDuyulan, hedef, HECELER) : null;
+    if (k) {
+      OGRENILEN[k] = hedef;
+      try { localStorage.setItem(OGRENME_KAYIT, JSON.stringify(OGRENILEN)); } catch (_) {}
+    }
+    const not = k ? `Öğrendim: “${kisalt(sonDuyulan)}” artık “${hedef}” sayılacak.` : "";
+    basari();
+    el.duyulan.textContent = not;
+  }
   let basiliSayac = null;
   const birak = () => { clearTimeout(basiliSayac); el.onay.classList.remove("basili"); };
   el.onay.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (mesgul) return;
     el.onay.classList.add("basili");
-    basiliSayac = setTimeout(() => { birak(); basari(); }, 800);
+    basiliSayac = setTimeout(() => { birak(); ebeveynOnayi(); }, 800);
   });
   ["pointerup", "pointerleave", "pointercancel"].forEach((t) => el.onay.addEventListener(t, birak));
   el.onay.addEventListener("contextmenu", (e) => e.preventDefault());
   el.onay.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); basari(); }
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ebeveynOnayi(); }
   });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && tanima) { try { tanima.abort(); } catch (_) {} }
