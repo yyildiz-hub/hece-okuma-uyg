@@ -1,904 +1,1431 @@
 <!doctype html>
 <html lang="tr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hece Okuma Oyunu</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@700;800&display=swap">
-<style>
-/* Düzen: tek ekran. Üstte ad ve yıldız şeridi, ortada kılavuz çizgili defter satırında hece, altta başparmak hizasında mikrofon. */
-:root{
-  --kagit:#F4F7FC;       /* sayfa zemini: defter kâğıdı */
-  --yaprak:#FFFFFF;      /* hece kartı */
-  --murekkep:#1C2640;    /* hece ve ana metin */
-  --soluk:#56627F;       /* ikincil metin */
-  --cizgi:#C9D7EE;       /* kılavuz çizgileri */
-  --cizgi-koyu:#8EA8D6;  /* taban ve orta çizgi */
-  --kenar:#E98A8A;       /* defterin kırmızı kenar çizgisi */
-  --mikrofon:#EB5530;
-  --mikrofon-yazi:#FFFFFF;
-  --yildiz:#FFB000;
-  --yildiz-bos:#D7E1F1;
-  --yildiz-yazi:#3A2700; /* yıldız rozetindeki yazı (iki temada da) */
-  --dogru:#13985A;
-  --tekrar:#6A52D8;
-  --golge:rgba(28,38,64,.18);
-  --perde:rgba(244,247,252,.95);
-  --yazi-hece:"Andika","Comic Sans MS","Chalkboard SE",sans-serif;
-  --yazi-baslik:"Baloo 2","Andika",system-ui,sans-serif;
-  --yazi-govde:"Andika",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --kagit:#0E1424; --yaprak:#172036; --murekkep:#EEF3FF; --soluk:#A3B0CF;
-    --cizgi:#2B3A5E; --cizgi-koyu:#4D689C; --kenar:#B85E5E;
-    --mikrofon:#FF6A43; --mikrofon-yazi:#FFFFFF;
-    --yildiz:#FFC22E; --yildiz-bos:#2A3757; --dogru:#3CC983; --tekrar:#A08DFF;
-    --golge:rgba(0,0,0,.5); --perde:rgba(14,20,36,.95);
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --kagit:#0E1424; --yaprak:#172036; --murekkep:#EEF3FF; --soluk:#A3B0CF;
-  --cizgi:#2B3A5E; --cizgi-koyu:#4D689C; --kenar:#B85E5E;
-  --mikrofon:#FF6A43; --mikrofon-yazi:#FFFFFF;
-  --yildiz:#FFC22E; --yildiz-bos:#2A3757; --dogru:#3CC983; --tekrar:#A08DFF;
-  --golge:rgba(0,0,0,.5); --perde:rgba(14,20,36,.95);
-  color-scheme:dark;
-}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F7FC">
+  <title>Hece Okuma</title>
+  <script>
+    // Yeni harfler öğrenildikçe yalnızca bu dizi genişletilir.
+    const HECELER = ["a", "an", "na", "nan", "ana", "e"];
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --zemin: #F4F7FC;
+      --yazi: #1C2640;
+      --mikrofon: #EB5530;
+      --yildiz: #FFB000;
+      --dogru: #13985A;
+      --tekrar: #6A52D8;
+      --kart: #FFFFFF;
+      --soluk: #6D7892;
+      --cizgi: #AFC7E8;
+      --orta-cizgi: #A8B7CB;
+      --taban: #6486B8;
+      --kenar: #EA6E6E;
+      --golge: 0 16px 38px rgba(36, 54, 88, .14);
+      --halka: rgba(235, 85, 48, .24);
+    }
 
-*,*::before,*::after{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;background:var(--kagit);color:var(--murekkep);
-  font-family:var(--yazi-govde);font-size:16px;line-height:1.45;
-  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
-}
-button{font:inherit;color:inherit}
-[hidden]{display:none!important}
-.gorunmez{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --zemin: #101725;
+        --yazi: #F4F7FC;
+        --kart: #182235;
+        --soluk: #B9C3D6;
+        --cizgi: #526D92;
+        --orta-cizgi: #667894;
+        --taban: #89A9D2;
+        --kenar: #D77777;
+        --golge: 0 18px 42px rgba(0, 0, 0, .30);
+        --halka: rgba(235, 85, 48, .32);
+      }
+    }
 
-.uygulama{
-  min-height:100%;max-width:560px;margin-inline:auto;
-  display:flex;flex-direction:column;gap:clamp(10px,2.2vh,20px);
-  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));
-  padding-block:calc(env(safe-area-inset-top,0px) + 14px) calc(env(safe-area-inset-bottom,0px) + 16px);
-}
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+    body {
+      min-height: 100svh;
+      background: var(--zemin);
+      color: var(--yazi);
+      font-family: "Andika", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
 
-/* Üst şerit */
-.ust{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.ad{margin:0;font-family:var(--yazi-baslik);font-weight:800;font-size:1.55rem;line-height:1}
-.raf{
-  display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:999px;
-  background:var(--yaprak);box-shadow:0 1px 3px var(--golge);
-  font-weight:700;font-variant-numeric:tabular-nums;
-}
-.raf .emoji{font-size:1.45rem;line-height:1}
+    button { font: inherit; }
 
-/* Uyarı (sesli kontrol yoksa) */
-.uyari{
-  padding:12px 14px;border-radius:16px;background:var(--yaprak);
-  border:1.5px solid var(--cizgi);font-size:.93rem;line-height:1.4;
-}
-.uyari strong{display:block;margin-bottom:2px}
+    .uygulama {
+      width: min(100%, 560px);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(18px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
 
-/* Yıldızlar */
-.yildizlar{list-style:none;margin:0;padding:0;display:flex;justify-content:center;gap:clamp(4px,2vw,12px)}
-.yildiz{width:clamp(34px,11vw,48px);aspect-ratio:1;max-width:100%}
-.yildiz svg{display:block;width:100%;height:100%;overflow:visible}
-.yildiz polygon{fill:var(--yildiz-bos);stroke:var(--yildiz-bos);stroke-width:2;stroke-linejoin:round;transition:fill .25s,stroke .25s}
-.yildiz.dolu polygon{fill:var(--yildiz);stroke:var(--yildiz)}
-.yildiz.yeni svg{animation:parla .6s cubic-bezier(.2,1.6,.4,1)}
-@keyframes parla{from{transform:scale(.3) rotate(-35deg)}to{transform:none}}
-.yildiz.kayip polygon{fill:var(--tekrar);stroke:var(--tekrar)}
-.yildiz.kayip svg{animation:kayip .7s ease}
-@keyframes kayip{0%{transform:none}25%{transform:scale(1.3) rotate(-12deg)}60%{transform:scale(.8) rotate(8deg)}100%{transform:none}}
-.yildizlar.yok{animation:salla .45s}
+    .ust {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
 
-/* Hece kartı: defter satırı */
-.kart{
-  position:relative;flex:1 1 0;min-height:220px;
-  display:grid;place-items:center;overflow:hidden;
-  background:var(--yaprak);border-radius:28px;
-  box-shadow:0 1px 0 var(--golge),0 18px 40px -24px var(--golge);
-}
-.kart canvas{display:block;max-width:100%}
-.kart.giris canvas{animation:giris .45s cubic-bezier(.2,.9,.3,1.15)}
-@keyframes giris{from{opacity:0;transform:translateX(16%) scale(.96)}to{opacity:1;transform:none}}
-.kart.salla{animation:salla .45s}
-@keyframes salla{0%,100%{transform:none}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(3px)}}
-.damga{
-  position:absolute;top:14px;right:14px;width:52px;height:52px;border-radius:50%;
-  display:grid;place-items:center;background:var(--dogru);color:var(--yaprak);
-  opacity:0;pointer-events:none;
-}
-.damga svg{width:28px;height:28px}
-.kart.basarili .damga{animation:damga 1.4s ease forwards}
-@keyframes damga{0%{opacity:0;transform:scale(.3) rotate(-25deg)}22%{opacity:1;transform:scale(1.12) rotate(4deg)}38%{transform:none}85%{opacity:1}100%{opacity:0}}
+    h1 {
+      margin: 0;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: clamp(28px, 7vw, 38px);
+      line-height: 1;
+      letter-spacing: .2px;
+    }
 
-/* Durum satırı */
-.durum{
-  margin:0;min-height:58px;display:grid;place-items:center;text-align:center;
-  font-size:1.12rem;color:var(--soluk);text-wrap:balance;
-}
-.durum[data-tur="iyi"]{font-family:var(--yazi-baslik);font-weight:800;font-size:2.1rem;line-height:1;color:var(--dogru);animation:zipla .5s cubic-bezier(.2,1.6,.4,1)}
-.durum[data-tur="tekrar"]{color:var(--tekrar);font-weight:700}
-@keyframes zipla{from{transform:scale(.6)}to{transform:none}}
+    .cikartma-sayaci {
+      min-width: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border-radius: 18px;
+      background: var(--kart);
+      box-shadow: 0 6px 20px rgba(36, 54, 88, .08);
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .son-cikartma { font-size: 24px; line-height: 1; }
 
-/* Mikrofon ve dinleme yardımı (mikrofon ortada kalır) */
-.eylem{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;column-gap:clamp(14px,5vw,28px)}
-.mik-kutu,.yardim-kutu{display:grid;justify-items:center;gap:8px}
-.yardim-kutu{justify-self:end}
-.dinle{
-  position:relative;width:62px;height:62px;border-radius:50%;cursor:pointer;touch-action:manipulation;
-  display:grid;place-items:center;border:2px solid var(--tekrar);background:var(--yaprak);color:var(--tekrar);
-  transition:transform .12s,opacity .2s,background-color .2s;
-}
-.dinle .hoparlor{width:28px;height:28px}
-.dinle:active{transform:scale(.94)}
-.dinle:focus-visible{outline:3px solid var(--cizgi-koyu);outline-offset:3px}
-.dinle[aria-disabled="true"]{opacity:.4}
-.dinle.caliyor{background:var(--tekrar);color:var(--yaprak);opacity:1}
-.bedel{
-  position:absolute;top:-7px;right:-12px;display:inline-flex;align-items:center;gap:1px;
-  padding:3px 6px 3px 5px;border-radius:999px;background:var(--yildiz);color:var(--yildiz-yazi);
-  font-size:.75rem;font-weight:700;line-height:1;box-shadow:0 1px 2px var(--golge);
-}
-.bedel svg{width:11px;height:11px}
-.bedel polygon{fill:currentColor}
-.dinle.bedava .bedel{display:none}
-.kucuk-etiket{font-size:.9rem;font-weight:700;color:var(--soluk)}
-.mikrofon{
-  position:relative;width:clamp(88px,24vw,108px);aspect-ratio:1;border:0;border-radius:50%;
-  display:grid;place-items:center;cursor:pointer;touch-action:manipulation;
-  background:var(--mikrofon);color:var(--mikrofon-yazi);
-  box-shadow:0 14px 26px -12px var(--mikrofon),inset 0 -4px 0 var(--golge);
-  transition:transform .12s,background-color .2s,opacity .2s;
-}
-.mikrofon svg{width:44%;height:44%}
-.mikrofon:active{transform:scale(.95)}
-.mikrofon:focus-visible{outline:4px solid var(--cizgi-koyu);outline-offset:4px}
-.mikrofon:disabled{opacity:.45;cursor:default}
-.mikrofon.dinliyor{box-shadow:0 0 0 8px var(--cizgi)}
-.mikrofon.hazirlaniyor{box-shadow:0 0 0 8px var(--cizgi);opacity:.8}
-.mikrofon.dinliyor::before,.mikrofon.dinliyor::after{
-  content:"";position:absolute;inset:0;border-radius:50%;
-  border:3px solid var(--mikrofon);animation:halka 1.4s ease-out infinite;
-}
-.mikrofon.dinliyor::after{animation-delay:.7s}
-@keyframes halka{from{transform:scale(1);opacity:.75}to{transform:scale(1.65);opacity:0}}
-.mikrofon.onayla{background:var(--dogru);box-shadow:0 14px 26px -12px var(--dogru),inset 0 -4px 0 var(--golge)}
-.mik-etiket{font-size:.95rem;font-weight:700;color:var(--soluk)}
+    .yildiz-seridi {
+      min-height: 45px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding: 3px 0;
+    }
 
-/* Ebeveyn satırı */
-.ebeveyn{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;min-height:44px;font-size:.9rem;color:var(--soluk)}
-.duyulan{min-width:0;overflow-wrap:anywhere}
-.onay{
-  position:relative;overflow:hidden;border:1.5px dashed var(--cizgi-koyu);border-radius:999px;
-  background:transparent;color:var(--soluk);padding:8px 14px;font-size:.9rem;cursor:pointer;
-  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;
-}
-.onay::before{content:"";position:absolute;inset:0;background:var(--dogru);opacity:.25;transform:scaleX(0);transform-origin:left}
-.onay.basili::before{transform:scaleX(1);transition:transform .8s linear}
-.onay span{position:relative}
-.onay:focus-visible{outline:3px solid var(--cizgi-koyu);outline-offset:3px}
+    .yildiz {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      line-height: 1;
+      transform-origin: center;
+      filter: grayscale(1);
+      opacity: .32;
+    }
+    .yildiz.kazanildi {
+      color: var(--yildiz);
+      filter: none;
+      opacity: 1;
+      text-shadow: 0 3px 8px rgba(255, 176, 0, .25);
+    }
+    .yildiz.harcanan {
+      color: var(--tekrar);
+      filter: none;
+      opacity: .62;
+    }
+    .yildiz.zipla { animation: zipla .5s cubic-bezier(.2,.9,.2,1.35); }
+    .yildiz.son { animation: morSon .6s ease; }
+    .yildiz-seridi.salla { animation: salla .38s ease; }
 
-/* Tur sonu ödülü */
-.perde{
-  position:fixed;inset:0;z-index:20;display:grid;place-items:center;overflow:auto;
-  padding:calc(env(safe-area-inset-top,0px) + 24px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px));
-  background:var(--perde);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-}
-.odul{width:min(100%,420px);display:grid;justify-items:center;gap:12px;text-align:center}
-.odul-cikartma{font-size:clamp(96px,30vw,140px);line-height:1;animation:sicra .8s cubic-bezier(.2,1.6,.4,1)}
-@keyframes sicra{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
-.odul h2{margin:0;font-family:var(--yazi-baslik);font-weight:800;font-size:2.3rem;line-height:1.05;text-wrap:balance}
-.odul p{margin:0;color:var(--soluk)}
-.raf-izgara{
-  display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:100%;max-height:26vh;overflow:auto;
-  padding:10px 12px;border-radius:18px;background:var(--yaprak);font-size:1.8rem;line-height:1.1;
-}
-.raf-izgara .yeni{animation:sicra .8s .35s both cubic-bezier(.2,1.6,.4,1)}
-.buyuk-dugme{
-  border:0;border-radius:999px;padding:14px 36px;cursor:pointer;
-  background:var(--mikrofon);color:var(--mikrofon-yazi);
-  font-family:var(--yazi-baslik);font-weight:800;font-size:1.35rem;
-  box-shadow:0 12px 24px -12px var(--mikrofon);
-}
-.buyuk-dugme:focus-visible{outline:4px solid var(--cizgi-koyu);outline-offset:4px}
+    .kart-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 26px;
+      box-shadow: var(--golge);
+      overflow: hidden;
+      background: var(--kart);
+    }
+    .kart-wrap.salla { animation: salla .42s ease; }
+    #heceCanvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
 
-.konfeti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+    .durum {
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.25;
+      padding: 0 6px;
+    }
+    .durum.dogru { color: var(--dogru); }
+    .durum.tekrar { color: var(--tekrar); }
+    .durum.uyari { color: var(--mikrofon); }
 
-@media (max-height:600px){.kart{min-height:170px}.durum{min-height:48px}}
-@media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-}
-</style>
+    .kontroller {
+      flex: 1;
+      min-height: 180px;
+      display: grid;
+      grid-template-columns: 96px 1fr 96px;
+      align-items: center;
+      justify-items: center;
+      gap: 10px;
+    }
+
+    .dinle-kutusu {
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .maliyet {
+      position: absolute;
+      top: -34px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--tekrar);
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 5px 14px rgba(106,82,216,.24);
+      white-space: nowrap;
+    }
+    .maliyet.gizli { visibility: hidden; }
+
+    .kucuk-btn {
+      width: 78px;
+      height: 78px;
+      border: 0;
+      border-radius: 24px;
+      background: var(--kart);
+      color: var(--yazi);
+      box-shadow: 0 8px 22px rgba(36,54,88,.12);
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 2px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .kucuk-btn .ikon { font-size: 27px; }
+
+    .mikrofon-wrap {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      display: grid;
+      place-items: center;
+    }
+    .halka {
+      position: absolute;
+      inset: 8px;
+      border: 3px solid var(--mikrofon);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mikrofon-wrap.dinliyor .halka { animation: halka 1.15s ease-out infinite; }
+    .mikrofon-wrap.dinliyor .halka:nth-child(2) { animation-delay: .35s; }
+
+    .mikrofon-btn {
+      position: relative;
+      z-index: 2;
+      width: 126px;
+      height: 126px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--mikrofon);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(235,85,48,.33);
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 5px;
+      padding: 14px;
+      cursor: pointer;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      line-height: 1.05;
+      text-align: center;
+    }
+    .mikrofon-btn .mic-ikon { font-size: 34px; line-height: 1; }
+    .mikrofon-btn .mic-yazi { font-size: 15px; }
+    .mikrofon-btn.ebeveyn {
+      background: var(--dogru);
+      box-shadow: 0 12px 28px rgba(19,152,90,.30);
+    }
+
+    button:disabled { opacity: .45; cursor: default; }
+    button:focus-visible { outline: 4px solid rgba(106,82,216,.35); outline-offset: 3px; }
+
+    .duyulan-alan {
+      min-height: 78px;
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 9px;
+      text-align: center;
+      padding-bottom: 3px;
+    }
+    .duyulan {
+      min-height: 23px;
+      color: var(--soluk);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .ebeveyn-onay {
+      position: relative;
+      border: 0;
+      border-radius: 16px;
+      padding: 11px 15px;
+      color: #fff;
+      background: var(--tekrar);
+      font-size: 14px;
+      font-weight: 700;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .ebeveyn-onay[hidden] { display: none; }
+    .ebeveyn-onay::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.26);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    .ebeveyn-onay.basili::after { animation: doldur .8s linear forwards; }
+
+    .odul-ekrani {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(18px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(18px, env(safe-area-inset-left));
+      background: color-mix(in srgb, var(--zemin) 94%, transparent);
+      backdrop-filter: blur(12px);
+      display: grid;
+      place-items: center;
+    }
+    .odul-ekrani[hidden] { display: none; }
+    .odul-kart {
+      width: min(100%, 500px);
+      max-height: 88svh;
+      overflow: auto;
+      padding: 24px 18px;
+      border-radius: 30px;
+      background: var(--kart);
+      box-shadow: var(--golge);
+      text-align: center;
+    }
+    .odul-baslik {
+      margin: 0 0 4px;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: 36px;
+    }
+    .buyuk-cikartma {
+      font-size: 92px;
+      line-height: 1.1;
+      margin: 4px 0 10px;
+      animation: zipla .7s cubic-bezier(.2,.9,.2,1.35);
+    }
+    .raf-baslik { margin: 10px 0 8px; font-weight: 700; }
+    .cikartma-rafi {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      min-height: 58px;
+      padding: 10px;
+      border-radius: 20px;
+      background: var(--zemin);
+      font-size: 36px;
+    }
+    .yeni-tur {
+      margin-top: 18px;
+      border: 0;
+      border-radius: 18px;
+      padding: 13px 24px;
+      background: var(--mikrofon);
+      color: white;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .konfeti {
+      position: fixed;
+      z-index: 70;
+      width: 10px;
+      height: 16px;
+      border-radius: 3px;
+      top: -24px;
+      left: 50%;
+      pointer-events: none;
+      animation: konfetiDus var(--sure, 1.4s) cubic-bezier(.1,.65,.25,1) forwards;
+    }
+
+    @keyframes zipla {
+      0% { transform: scale(.55) rotate(-12deg); }
+      55% { transform: scale(1.35) rotate(8deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
+    @keyframes morSon {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: .35; }
+      100% { transform: scale(1); opacity: .62; }
+    }
+    @keyframes salla {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(3px); }
+    }
+    @keyframes halka {
+      0% { transform: scale(.78); opacity: .55; box-shadow: 0 0 0 0 var(--halka); }
+      100% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 18px transparent; }
+    }
+    @keyframes doldur { to { transform: scaleX(1); } }
+    @keyframes konfetiDus {
+      0% { transform: translate3d(0,0,0) rotate(0deg); opacity: 1; }
+      100% { transform: translate3d(var(--x), 108svh, 0) rotate(var(--r)); opacity: .9; }
+    }
+
+    @media (max-height: 720px) {
+      .uygulama { gap: 8px; }
+      #heceCanvas { height: 220px; }
+      .durum { min-height: 38px; font-size: 16px; }
+      .kontroller { min-height: 150px; }
+      .mikrofon-wrap { width: 132px; height: 132px; }
+      .mikrofon-btn { width: 112px; height: 112px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+      .konfeti { display: none; }
+    }
+  </style>
 </head>
 <body>
-<div class="uygulama">
+<main class="uygulama" aria-live="polite">
   <header class="ust">
-    <h1 class="ad">Hece Okuma</h1>
-    <div class="raf" role="status" aria-live="polite">
-      <span class="emoji" id="rafSon" aria-hidden="true">🎁</span>
-      <span id="rafSayi">0</span><span class="gorunmez"> çıkartma</span>
+    <h1>Hece Okuma</h1>
+    <div class="cikartma-sayaci" aria-label="Çıkartmalar">
+      <span id="sonCikartma" class="son-cikartma">☆</span>
+      <span id="cikartmaToplam">0</span>
     </div>
   </header>
 
-  <div class="uyari" id="uyari" role="note" hidden>
-    <strong>Sesli kontrol bu ekranda çalışmıyor.</strong>
-    <span id="uyariMetin"></span>
-  </div>
+  <section id="yildizSeridi" class="yildiz-seridi" aria-label="Tur yıldızları"></section>
 
-  <ol class="yildizlar" id="yildizlar" aria-label="Bu turdaki yıldızlar"></ol>
+  <section id="kartWrap" class="kart-wrap" aria-label="Okunacak hece">
+    <canvas id="heceCanvas"></canvas>
+  </section>
 
-  <main class="kart" id="kart">
-    <canvas id="hece" role="img" aria-label="Hece"></canvas>
-    <div class="damga" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-    </div>
-  </main>
+  <div id="durum" class="durum">Mikrofona dokun. Sonra oku.</div>
 
-  <p class="durum" id="durum" aria-live="polite"></p>
-
-  <div class="eylem">
-    <div class="yardim-kutu">
-      <button type="button" class="dinle" id="dinle" aria-label="Heceyi dinle, bir yıldız gider" aria-disabled="true">
-        <svg class="hoparlor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3.5 9.5h4L12 5.5v13l-4.5-4h-4z" fill="currentColor"/>
-          <path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18.3 6.6a7.6 7.6 0 0 1 0 10.8"/>
-        </svg>
-        <span class="bedel" aria-hidden="true">−1<svg viewBox="0 0 24 24"><polygon points="12 2.6 15.09 8.26 21.6 9.27 16.9 13.94 18.08 20.62 12 17.47 5.92 20.62 7.1 13.94 2.4 9.27 8.91 8.26"/></svg></span>
+  <section class="kontroller" aria-label="Okuma kontrolleri">
+    <div class="dinle-kutusu">
+      <div id="maliyet" class="maliyet">−1⭐</div>
+      <button id="dinleBtn" class="kucuk-btn" type="button" aria-label="Heceyi dinle">
+        <span class="ikon" aria-hidden="true">🔊</span>
+        <span>Dinle</span>
       </button>
-      <span class="kucuk-etiket">Dinle</span>
     </div>
-    <div class="mik-kutu">
-    <button type="button" class="mikrofon" id="mikrofon" aria-label="Dinlemeye başla">
-      <svg id="ikonMik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="9" y="2.5" width="6" height="12" rx="3" fill="currentColor" stroke="none"/>
-        <path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/>
-      </svg>
-      <svg id="ikonOnay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
-        <path d="M5 12.5l4.5 4.5L19 7.5"/>
-      </svg>
-    </button>
-    <span class="mik-etiket" id="mikEtiket">Dokun ve oku</span>
+
+    <div id="mikrofonWrap" class="mikrofon-wrap">
+      <span class="halka"></span>
+      <span class="halka"></span>
+      <button id="mikrofonBtn" class="mikrofon-btn" type="button">
+        <span id="micIkon" class="mic-ikon" aria-hidden="true">🎤</span>
+        <span id="micYazi" class="mic-yazi">Dokun ve oku</span>
+      </button>
     </div>
-  </div>
 
-  <div class="ebeveyn">
-    <span class="duyulan" id="duyulan"></span>
-    <button type="button" class="onay" id="onay" hidden><span>Ebeveyn: basılı tut, doğru say</span></button>
-  </div>
-</div>
+    <div aria-hidden="true"></div>
+  </section>
 
-<div class="perde" id="perde" role="dialog" aria-modal="true" aria-labelledby="perdeBaslik" hidden>
-  <div class="odul">
-    <div class="odul-cikartma" id="perdeCikartma" aria-hidden="true"></div>
-    <h2 id="perdeBaslik">Tebrikler!</h2>
-    <p>Bütün heceleri okudun, yeni bir çıkartma kazandın.</p>
-    <div class="raf-izgara" id="perdeRaf" aria-label="Çıkartma rafı"></div>
-    <button type="button" class="buyuk-dugme" id="yeniTur">Yeni tur</button>
-  </div>
-</div>
+  <section class="duyulan-alan">
+    <div id="duyulan" class="duyulan">Duyduğum: “…”</div>
+    <button id="ebeveynOnay" class="ebeveyn-onay" type="button" hidden>Ebeveyn: basılı tut, doğru say</button>
+  </section>
+</main>
 
-<canvas class="konfeti" id="konfeti" aria-hidden="true"></canvas>
+<section id="odulEkrani" class="odul-ekrani" hidden aria-modal="true" role="dialog" aria-labelledby="odulBaslik">
+  <div class="odul-kart">
+    <h2 id="odulBaslik" class="odul-baslik">Tur bitti!</h2>
+    <div id="buyukCikartma" class="buyuk-cikartma">🦁</div>
+    <div id="odulMesaj">Yeni bir çıkartma kazandın!</div>
+    <div class="raf-baslik">Çıkartma rafın</div>
+    <div id="cikartmaRafi" class="cikartma-rafi"></div>
+    <button id="yeniTurBtn" class="yeni-tur" type="button">Yeni tur</button>
+  </div>
+</section>
 
 <script>
 (() => {
   "use strict";
 
-  // Yeni harfler öğrenildikçe heceleri bu listeye ekleyin.
-  const HECELER = ["a", "an", "na", "nan", "ana", "e"];
-  const OVGULER = ["Aferin!", "Harika!", "Süpersin!", "Bravo!", "Çok güzel!"];
-  const CIKARTMALAR = ["🦁","🐼","🦊","🐸","🐯","🐨","🐰","🐻","🦉","🐢","🐙","🦋","🐞","🐬","🦄","🐧","🐳","🦒","🐝","🦕"];
-  const KAYIT = "hece-okuma-cikartmalar";
+  // ---------- Saf eşleştirme fonksiyonları ----------
+  const TURKCE_UNLULER = new Set(["a","e","ı","i","o","ö","u","ü"]);
+  const E_GRUBU = new Set(["e","i","ö","ü"]);
+  const A_GRUBU = new Set(["a","ı","o","u"]);
+  const YAKIN_UNSUZ = new Map([
+    ["mn", .2], ["nm", .2],
+    ["ln", .35], ["nl", .35], ["rn", .35], ["nr", .35], ["lr", .35], ["rl", .35],
+    ["bp", .4], ["pb", .4], ["dt", .4], ["td", .4], ["gk", .4], ["kg", .4],
+    ["cç", .4], ["çc", .4], ["fv", .4], ["vf", .4], ["sz", .4], ["zs", .4],
+    ["jş", .4], ["şj", .4]
+  ]);
 
-  /*ESLESTIRME-BASLA*/
-  // Telefonun ses tanıması tek heceyi çoğu zaman benzer bir kelimeye çevirir: a → "Ah", "O"; nan → "Nam"; ana → "Ama", "Bana".
-  // Kural: hecelerde geçen harfler (şimdilik a, n, e) birebir uymalı. Listede olmayan harfler (h, ğ, y, m, l, o, i…)
-  // çocuğun henüz bilmediği seslerdir, yani büyük olasılıkla tanıma hatasıdır; yakın sese ucuza bağlanır.
-  // Böylece "an" ile "na", "a" ile "e" ayrı kalır.
-  const UNLU = "aeıioöuü", ONLU = "eiöü";              // ön ünlüler e'ye, art ünlüler a'ya yakın
-  const YAKIN = { mn: 0.2, ln: 0.35, nr: 0.35, lr: 0.35, bp: 0.4, dt: 0.4, gk: 0.4, "cç": 0.4, fv: 0.4, sz: 0.4, "jş": 0.4 };
-  const OGRENILEN = Object.create(null);               // ebeveynin "doğru say" dediği duyulanlar: { nane: "nan" }
-  function kelimeler(metin) {
-    return String(metin || "")
-      .toLocaleLowerCase("tr-TR")
-      .normalize("NFD").replace(/[̀-̂]/g, "").normalize("NFC")
-      .replace(/[^a-zçğıöşü\s]/g, " ")
-      .trim().split(/\s+/).filter(Boolean);
+  function getKnownLetters(heceler) {
+    return new Set(heceler.join("").split(""));
   }
-  function sade(k, harf) {
-    if (!harf.has("ğ")) k = k.replace(/ğ/g, "");        // ğ yalnızca sesi uzatır
-    return k.replace(/(.)\1+/g, "$1");                   // naan → nan
-  }
-  function fazlaBedel(x, harf) {                        // duyulanda fazladan bir harf
-    if (harf.has(x)) return 1;
-    return x === "h" ? 0.2 : x === "y" ? 0.3 : UNLU.includes(x) ? 0.7 : 0.6;
-  }
-  function yerineBedel(x, y, harf) {                    // y yerine x duyulmuş
-    if (x === y) return 0;
-    const xu = UNLU.includes(x), yu = UNLU.includes(y);
-    if (xu !== yu) return 1.2;
-    if (harf.has(x)) return 1;
-    if (xu) return ONLU.includes(x) === ONLU.includes(y) ? 0.4 : 0.9;
-    return YAKIN[[x, y].sort().join("")] || 0.7;
-  }
-  function uzaklik(s, t, harf) {                        // ağırlıklı düzeltme uzaklığı
-    let ust = [0];
-    for (let j = 1; j <= t.length; j++) ust[j] = ust[j - 1] + 1;
-    for (let i = 1; i <= s.length; i++) {
-      const alt = [ust[0] + fazlaBedel(s[i - 1], harf)];
-      for (let j = 1; j <= t.length; j++) {
-        alt[j] = Math.min(ust[j] + fazlaBedel(s[i - 1], harf), alt[j - 1] + 1, ust[j - 1] + yerineBedel(s[i - 1], t[j - 1], harf));
-      }
-      ust = alt;
-    }
-    return ust[t.length];
-  }
-  function sinifla(kelime, liste, harf) {               // en yakın hece; emin değilse null
-    const k = sade(kelime, harf);
-    if (!k) return null;
-    const tam = liste.find((h) => sade(h, harf) === k);
-    if (tam) return tam;
-    if (liste.includes(OGRENILEN[k])) return OGRENILEN[k];
-    const s = liste.map((h) => [h, uzaklik(k, sade(h, harf), harf)]).sort((p, q) => p[1] - q[1]);
-    const L = s[0][0].length, esik = L === 1 ? 0.6 : L === 2 ? 0.7 : 0.9 + 0.2 * (L - 3);
-    const ara = s.length > 1 ? s[1][1] - s[0][1] : Infinity;
-    return s[0][1] <= esik + 1e-9 && ara >= 0.25 - 1e-9 ? s[0][0] : null;
-  }
-  // Bir tanıma metni için karar: "dogru", "yanlis" (başka bir hece okundu) ya da null (anlaşılmadı).
-  function karar(metin, hedef, liste) {
-    const harf = new Set(liste.join(""));
-    const w = kelimeler(metin);
-    if (!w.length) return null;
-    const butun = sinifla(w.join(""), liste, harf);
-    if (butun === hedef) return "dogru";                             // "a na" → ana
-    if (w.length > 1 && butun) return "yanlis";                      // parçalar başka heceyi kuruyor
-    const s = w.map((k) => sinifla(k, liste, harf)).filter(Boolean);
-    if (!s.length) return butun ? "yanlis" : null;
-    const baska = new Set(s.filter((h) => h !== hedef));
-    return s[s.length - 1] === hedef && baska.size <= 1 ? "dogru" : "yanlis"; // tekrar ya da kendini düzeltme
-  }
-  // Tarayıcının en olası tahmini esastır; o belirsizse diğer tahminlere bakılır.
-  function degerlendir(adaylar, hedef, liste) {
-    const ust = karar(adaylar[0], hedef, liste);
-    if (ust) return ust;
-    return adaylar.slice(1).some((a) => karar(a, hedef, liste) === "dogru") ? "dogru" : null;
-  }
-  function duyulanHece(metin, liste) {                  // duyulanın benzediği hece (ipucu için)
-    return sinifla(kelimeler(metin).join(""), liste, new Set(liste.join("")));
-  }
-  // Ebeveyn "doğru say" dediğinde öğrenilecek anahtar. Başka bir heceye benzeyen duyulan öğrenilmez,
-  // yoksa "an" ile "na" gibi ayrımlar bozulurdu.
-  function ogrenilecek(metin, hedef, liste) {
-    const k = sade(kelimeler(metin).join(""), new Set(liste.join("")));
-    return k && k.length <= 24 && karar(metin, hedef, liste) === null ? k : null;
-  }
-  function ipucu(hedef, duyulan) {                      // eksik ya da ters okumada ne yapmalı
-    if (!duyulan || duyulan === hedef) return "";
-    if (hedef.slice(0, -1) === duyulan) return `Sondaki “${hedef.slice(-1)}” sesini de söyle!`;
-    if (hedef.slice(1) === duyulan) return `Baştaki “${hedef[0]}” sesini de söyle!`;
-    if ([...hedef].reverse().join("") === duyulan) return "Soldan sağa doğru oku!";
-    return "";
-  }
-  /*ESLESTIRME-BITIS*/
 
-  const $ = (id) => document.getElementById(id);
-  const el = {
-    kart: $("kart"), hece: $("hece"), durum: $("durum"), mikrofon: $("mikrofon"),
-    ikonMik: $("ikonMik"), ikonOnay: $("ikonOnay"), mikEtiket: $("mikEtiket"),
-    duyulan: $("duyulan"), onay: $("onay"), uyari: $("uyari"), uyariMetin: $("uyariMetin"),
-    yildizlar: $("yildizlar"), rafSon: $("rafSon"), rafSayi: $("rafSayi"),
-    perde: $("perde"), perdeCikartma: $("perdeCikartma"), perdeRaf: $("perdeRaf"),
-    yeniTur: $("yeniTur"), konfeti: $("konfeti"), dinle: $("dinle")
-  };
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const azHareket = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const YILDIZ_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2.6 15.09 8.26 21.6 9.27 16.9 13.94 18.08 20.62 12 17.47 5.92 20.62 7.1 13.94 2.4 9.27 8.91 8.26"/></svg>';
+  function turkceKucult(text) {
+    return String(text ?? "").toLocaleLowerCase("tr-TR");
+  }
 
-  let sira = [], idx = 0, yildiz = 0, mesgul = false, mod = "ses", sonHece = null, tanima = null, vurguRenk = null;
-  let raf = rafOku();
-  const OGRENME_KAYIT = "hece-okuma-ogrenilen";
-  let sonDuyulan = "";
-  try {
-    const v = JSON.parse(localStorage.getItem(OGRENME_KAYIT) || "{}");
-    for (const [k, h] of Object.entries(v || {})) if (/^[a-zçğıöşü]{1,24}$/.test(k) && typeof h === "string") OGRENILEN[k] = h;
-  } catch (_) {}
-  const sentez = window.speechSynthesis || null;
-  let dinlendi = false, konusuyor = false, konusmaNo = 0;
+  function isaretleriAt(text) {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
 
-  const token = (ad) => getComputedStyle(document.documentElement).getPropertyValue(ad).trim();
-  const rastgele = (d) => d[Math.floor(Math.random() * d.length)];
-
-  // ——— Ödül rafı (bu tarayıcıda saklanır) ———
-  function rafOku() {
+  function temizleVeBol(text) {
+    const kucuk = isaretleriAt(turkceKucult(text));
+    let harfli;
     try {
-      const v = JSON.parse(localStorage.getItem(KAYIT) || "[]");
-      return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(-300) : [];
-    } catch (_) { return []; }
-  }
-  function rafYaz() { try { localStorage.setItem(KAYIT, JSON.stringify(raf)); } catch (_) {} }
-  function rafGoster() {
-    el.rafSon.textContent = raf.length ? raf[raf.length - 1] : "🎁";
-    el.rafSayi.textContent = String(raf.length);
+      harfli = kucuk.replace(/[^\p{L}]+/gu, " ");
+    } catch (_) {
+      harfli = kucuk.replace(/[^a-zçğıöşüı]+/g, " ");
+    }
+    return harfli.trim().split(/\s+/).filter(Boolean);
   }
 
-  // ——— Sesler (Web Audio, dosya gerektirmez) ———
-  const ses = (() => {
-    let ctx = null;
-    function hazir() {
-      try {
-        if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
-        if (ctx.state === "suspended") ctx.resume();
-      } catch (_) { return null; }
-      return ctx;
+  function sadelestirKelime(kelime, knownLetters) {
+    let s = isaretleriAt(turkceKucult(kelime));
+    if (!knownLetters.has("ğ")) s = s.replace(/ğ/g, "");
+    let out = "";
+    for (const ch of s) {
+      if (out.at(-1) !== ch) out += ch;
     }
-    function nota(frekans, gecikme, sure, tip, hacim) {
-      const c = hazir(); if (!c) return;
-      const t = c.currentTime + gecikme;
-      const o = c.createOscillator(), g = c.createGain();
-      o.type = tip || "triangle";
-      o.frequency.setValueAtTime(frekans, t);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(hacim || 0.18, t + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
-      o.connect(g); g.connect(c.destination);
-      o.start(t); o.stop(t + sure + 0.05);
+    return out;
+  }
+
+  function sadelestirMetin(text, knownLetters) {
+    return temizleVeBol(text).map(k => sadelestirKelime(k, knownLetters)).filter(Boolean);
+  }
+
+  function ekstraHarfMaliyeti(ch, knownLetters) {
+    if (knownLetters.has(ch)) return 1;
+    if (ch === "h") return .2;
+    if (ch === "y") return .3;
+    if (TURKCE_UNLULER.has(ch)) return .7;
+    return .6;
+  }
+
+  function degisimMaliyeti(duyulan, hedef, knownLetters) {
+    if (duyulan === hedef) return 0;
+    const dUnlu = TURKCE_UNLULER.has(duyulan);
+    const hUnlu = TURKCE_UNLULER.has(hedef);
+    if (dUnlu !== hUnlu) return 1.2;
+
+    if (knownLetters.has(duyulan)) return 1;
+
+    if (dUnlu && hUnlu) {
+      const ayniGrup = (E_GRUBU.has(duyulan) && E_GRUBU.has(hedef)) ||
+                       (A_GRUBU.has(duyulan) && A_GRUBU.has(hedef));
+      return ayniGrup ? .4 : .9;
     }
-    return {
-      hazir,
-      basari() { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => nota(f, i * 0.085, 0.35)); },
-      tekrar() { nota(392, 0, 0.22, "sine", 0.12); nota(329.63, 0.16, 0.32, "sine", 0.12); },
-      fanfar() {
-        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => nota(f, i * 0.12, 0.3, "triangle", 0.2));
-        [523.25, 659.25, 783.99, 1046.5].forEach((f) => nota(f, 0.52, 1.2, "triangle", 0.09));
+
+    if (!dUnlu && !hUnlu) return YAKIN_UNSUZ.get(duyulan + hedef) ?? .7;
+    return 1.2;
+  }
+
+  // Yön: duyulan metinden hedef heceye.
+  function agirlikliUzaklik(duyulan, hedef, knownLetters) {
+    const a = [...duyulan];
+    const b = [...hedef];
+    const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+    for (let i = 1; i <= a.length; i++) dp[i][0] = dp[i - 1][0] + ekstraHarfMaliyeti(a[i - 1], knownLetters);
+    for (let j = 1; j <= b.length; j++) dp[0][j] = dp[0][j - 1] + 1;
+
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + ekstraHarfMaliyeti(a[i - 1], knownLetters),
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + degisimMaliyeti(a[i - 1], b[j - 1], knownLetters)
+        );
       }
-    };
-  })();
+    }
+    return dp[a.length][b.length];
+  }
 
-  // ——— Heceyi kılavuz çizgili defter satırına çiz ———
-  function heceyiCiz() {
-    const c = el.hece, ctx = c.getContext("2d");
-    const w = Math.max(200, Math.floor(el.kart.clientWidth));
-    const kartH = el.kart.clientHeight;
-    const aile = token("--yazi-hece") || "sans-serif";
-    const metin = sira[idx] || "";
-    let boy = Math.min(w * 0.34, 210);
-    if (kartH > 0) boy = Math.min(boy, (kartH - 24) / 1.5);
-    boy = Math.max(56, boy);
-    ctx.font = `700 ${boy}px ${aile}`;
-    const genislik = ctx.measureText(metin).width;
-    if (genislik > w * 0.72) boy *= (w * 0.72) / genislik;
-    const yazi = `700 ${boy}px ${aile}`;
-    ctx.font = yazi;
-    const xYuk = ctx.measureText("x").actualBoundingBoxAscent || boy * 0.5;
-    const ustYuk = ctx.measureText("l").actualBoundingBoxAscent || boy * 0.72;
-    const altYuk = ctx.measureText("g").actualBoundingBoxDescent || boy * 0.22;
-    const bosluk = Math.round(boy * 0.16);
-    const h = Math.ceil(ustYuk + altYuk + bosluk * 2);
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    c.style.width = w + "px"; c.style.height = h + "px";
-    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  function esik(hece) {
+    if (hece.length === 1) return .6;
+    if (hece.length === 2) return .7;
+    return .9 + Math.max(0, hece.length - 3) * .2;
+  }
+
+  function siniflandir(sadeKelime, heceler, learnedMap = {}) {
+    const knownLetters = getKnownLetters(heceler);
+    if (!sadeKelime) return { hece: null, durum: "belirsiz", neden: "bos" };
+
+    // Birebir hece her zaman öğrenilmiş eşleşmeden önce gelir.
+    if (heceler.includes(sadeKelime)) {
+      return { hece: sadeKelime, durum: "kesin", uzaklik: 0, ikinci: Infinity };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(learnedMap, sadeKelime) && heceler.includes(learnedMap[sadeKelime])) {
+      return { hece: learnedMap[sadeKelime], durum: "ogrenilmis", uzaklik: 0, ikinci: Infinity };
+    }
+
+    const sirali = heceler
+      .map(h => ({ hece: h, uzaklik: agirlikliUzaklik(sadeKelime, h, knownLetters) }))
+      .sort((x, y) => x.uzaklik - y.uzaklik || x.hece.length - y.hece.length);
+
+    const birinci = sirali[0];
+    const ikinci = sirali[1] ?? { uzaklik: Infinity };
+    const marj = ikinci.uzaklik - birinci.uzaklik;
+
+    if (birinci.uzaklik <= esik(birinci.hece) && marj >= .25 - 1e-9) {
+      return { hece: birinci.hece, durum: "yakin", uzaklik: birinci.uzaklik, ikinci: ikinci.uzaklik };
+    }
+    return { hece: null, durum: "belirsiz", uzaklik: birinci.uzaklik, ikinci: ikinci.uzaklik };
+  }
+
+  function metniKararVer(text, hedef, heceler, learnedMap = {}) {
+    const knownLetters = getKnownLetters(heceler);
+    const kelimeler = sadelestirMetin(text, knownLetters);
+    const birlesik = kelimeler.join("");
+
+    if (!birlesik) return { karar: "belirsiz", kelimeler, birlesik, siniflar: [] };
+
+    // 1) Kelimeler birleşince hedef çıkıyorsa doğru.
+    if (birlesik === hedef) return { karar: "dogru", kelimeler, birlesik, siniflar: [] };
+
+    // 2) Birden çok kelime birleşince başka bir hece çıkıyorsa yanlış.
+    if (kelimeler.length > 1 && heceler.includes(birlesik) && birlesik !== hedef) {
+      return { karar: "yanlis", kelimeler, birlesik, siniflar: [] };
+    }
+
+    // 3) Kelimeleri tek tek sınıflandır, belirsizleri at.
+    const detaylar = kelimeler.map(k => ({ kelime: k, ...siniflandir(k, heceler, learnedMap) }));
+    const siniflar = detaylar.filter(d => d.hece).map(d => d.hece);
+    if (!siniflar.length) return { karar: "belirsiz", kelimeler, birlesik, siniflar, detaylar };
+
+    const son = siniflar.at(-1);
+    if (son === hedef) {
+      const farkliSayisi = siniflar.slice(0, -1).filter(h => h !== hedef).length;
+      if (farkliSayisi <= 1) return { karar: "dogru", kelimeler, birlesik, siniflar, detaylar };
+    }
+    return { karar: "yanlis", kelimeler, birlesik, siniflar, detaylar };
+  }
+
+  function adaylariKararVer(adaylar, hedef, heceler, learnedMap = {}) {
+    if (!adaylar.length) return { karar: "belirsiz", aday: "", detay: null };
+    const ilk = metniKararVer(adaylar[0], hedef, heceler, learnedMap);
+    if (ilk.karar === "dogru" || ilk.karar === "yanlis") {
+      return { karar: ilk.karar, aday: adaylar[0], detay: ilk };
+    }
+    for (let i = 1; i < adaylar.length; i++) {
+      const d = metniKararVer(adaylar[i], hedef, heceler, learnedMap);
+      if (d.karar === "dogru") return { karar: "dogru", aday: adaylar[i], detay: d };
+    }
+    return { karar: "belirsiz", aday: adaylar[0], detay: ilk };
+  }
+
+  function matcherSelfTests() {
+    const cases = [
+      ["a", ["A","Ah","Ha","Aaa","Ay","O"], "dogru"],
+      ["a", ["E","An","Ana","Na","a e"], "yanlis"],
+      ["a", ["Ab"], "belirsiz"],
+      ["e", ["E","Eh","He","Ey","İ"], "dogru"],
+      ["e", ["A","O"], "yanlis"],
+      ["e", ["Ne"], "belirsiz"],
+      ["an", ["An","Han","Am","On","Al"], "dogru"],
+      ["an", ["Na","Ana","A","Nan"], "yanlis"],
+      ["na", ["Na","Nah","Ma","La","No","na na"], "dogru"],
+      ["na", ["An","Nan","A","a na"], "yanlis"],
+      ["na", ["Ne","nana"], "belirsiz"],
+      ["nan", ["Nan","Nam","Lan","Man","Naan"], "dogru"],
+      ["nan", ["Na","An","Ana","Han"], "yanlis"],
+      ["nan", ["Nane"], "belirsiz"],
+      ["ana", ["Ana","Anna","Hana","Ama","Bana","Ayna","a na","an a"], "dogru"],
+      ["ana", ["An","Nan","A"], "yanlis"],
+      ["ana", ["Anne"], "belirsiz"],
+      ["a", ["a tamam","e a"], "dogru"],
+      ["na", ["e a an na"], "yanlis"]
+    ];
+    const failures = [];
+    for (const [hedef, inputs, beklenen] of cases) {
+      for (const input of inputs) {
+        const got = metniKararVer(input, hedef, HECELER, {}).karar;
+        if (got !== beklenen) failures.push({ hedef, input, beklenen, got });
+      }
+    }
+    const alt1 = adaylariKararVer(["Ne","Na"], "na", HECELER, {}).karar;
+    const alt2 = adaylariKararVer(["An","Na"], "na", HECELER, {}).karar;
+    if (alt1 !== "dogru") failures.push({ hedef: "na", input: '["Ne","Na"]', beklenen: "dogru", got: alt1 });
+    if (alt2 !== "yanlis") failures.push({ hedef: "na", input: '["An","Na"]', beklenen: "yanlis", got: alt2 });
+    return failures;
+  }
+
+  // ---------- Uygulama ----------
+  const $ = (s) => document.querySelector(s);
+  const canvas = $("#heceCanvas");
+  const ctx = canvas.getContext("2d");
+  const kartWrap = $("#kartWrap");
+  const durumEl = $("#durum");
+  const duyulanEl = $("#duyulan");
+  const yildizSeridi = $("#yildizSeridi");
+  const mikrofonWrap = $("#mikrofonWrap");
+  const mikrofonBtn = $("#mikrofonBtn");
+  const micIkon = $("#micIkon");
+  const micYazi = $("#micYazi");
+  const dinleBtn = $("#dinleBtn");
+  const maliyetEl = $("#maliyet");
+  const ebeveynOnay = $("#ebeveynOnay");
+  const sonCikartmaEl = $("#sonCikartma");
+  const cikartmaToplamEl = $("#cikartmaToplam");
+  const odulEkrani = $("#odulEkrani");
+  const buyukCikartma = $("#buyukCikartma");
+  const cikartmaRafi = $("#cikartmaRafi");
+  const odulMesaj = $("#odulMesaj");
+  const yeniTurBtn = $("#yeniTurBtn");
+
+  const CIKARTMALAR = ["🦁","🐼","🦊","🐸","🐯","🐨","🐰","🐻","🦉","🐢","🐙","🦋","🐞","🐬","🦄","🐧","🐳","🦒","🐝","🦕"];
+  const OVGULER = ["Aferin!", "Harika!", "Süpersin!", "Bravo!", "Çok güzel!"];
+  const LS_STICKERS = "hece-okuma-cikartmalar-v1";
+  const LS_LEARNED = "hece-okuma-ogrenilen-v1";
+
+  let tur = [];
+  let sira = 0;
+  let oncekiTurSonu = null;
+  let starStates = [];
+  let dinlenenler = new Set();
+  const storedStickers = safeRead(LS_STICKERS, []);
+  const storedLearned = safeRead(LS_LEARNED, {});
+  let stickers = Array.isArray(storedStickers)
+    ? [...new Set(storedStickers.filter(x => CIKARTMALAR.includes(x)))]
+    : [];
+  let learnedMap = storedLearned && typeof storedLearned === "object" && !Array.isArray(storedLearned)
+    ? storedLearned
+    : {};
+  let sonKazanilan = stickers.at(-1) || "☆";
+  let parentMode = false;
+  let recognition = null;
+  let listening = false;
+  let speaking = false;
+  let decided = false;
+  let lastCandidates = [];
+  let lastHeard = "";
+  let lastVerdict = "belirsiz";
+  let sessionSeenCorrect = false;
+  let gotAnyResult = false;
+  let startAt = 0;
+  let audioCtx = null;
+  let currentCorrect = false;
+
+  const timers = {
+    ready: null,
+    fallbackReady: null,
+    accept: null,
+    inactivity: null,
+    stopEval: null,
+    four: null,
+    nine: null,
+    next: null
+  };
+
+  function safeRead(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_) { return fallback; }
+  }
+
+  function safeWrite(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+  }
+
+  function clearTimer(name) {
+    if (timers[name]) clearTimeout(timers[name]);
+    timers[name] = null;
+  }
+
+  function clearSessionTimers() {
+    ["ready","fallbackReady","accept","inactivity","stopEval","four","nine"].forEach(clearTimer);
+  }
+
+  function setDurum(text, type = "") {
+    durumEl.textContent = text;
+    durumEl.className = "durum" + (type ? " " + type : "");
+  }
+
+  function setDuyulan(text = "") {
+    lastHeard = text;
+    duyulanEl.textContent = `Duyduğum: “${text || "…"}”`;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function yeniTur() {
+    stopAllSpeech();
+    odulEkrani.hidden = true;
+    let aday = shuffle(HECELER);
+    if (HECELER.length > 1 && oncekiTurSonu && aday[0] === oncekiTurSonu) {
+      const j = aday.findIndex((x, i) => i > 0 && x !== oncekiTurSonu);
+      if (j > 0) [aday[0], aday[j]] = [aday[j], aday[0]];
+    }
+    tur = aday;
+    sira = 0;
+    starStates = Array(tur.length).fill("bos");
+    dinlenenler = new Set();
+    currentCorrect = false;
+    renderStars();
+    renderStickerCounter();
+    yeniHeceUI();
+  }
+
+  function hedef() { return tur[sira] || ""; }
+
+  function yeniHeceUI() {
+    currentCorrect = false;
+    setDuyulan("");
+    lastVerdict = "belirsiz";
+    ebeveynOnay.hidden = true;
+    kartWrap.classList.remove("salla");
+    mikrofonWrap.classList.remove("dinliyor");
+    updateListenBadge();
+    drawCard(false);
+    if (parentMode) {
+      setDurum("Sesli oku. Doğruysa ebeveyn bassın.");
+    } else {
+      setDurum("Mikrofona dokun. Sonra oku.");
+    }
+    updateLocks();
+  }
+
+  function renderStars() {
+    yildizSeridi.innerHTML = "";
+    starStates.forEach((state, i) => {
+      const span = document.createElement("span");
+      span.className = "yildiz" + (state === "earned" ? " kazanildi" : state === "spent" ? " harcanan" : "");
+      span.textContent = state === "spent" ? "★" : (state === "earned" ? "★" : "☆");
+      span.setAttribute("aria-label", state === "earned" ? "Kazanılmış yıldız" : state === "spent" ? "Dinleme için kullanılmış yıldız" : "Boş yıldız");
+      span.dataset.index = String(i);
+      yildizSeridi.appendChild(span);
+    });
+  }
+
+  function earnStar(index) {
+    if (starStates[index] !== "earned") starStates[index] = "earned";
+    renderStars();
+    const el = yildizSeridi.querySelector(`[data-index="${index}"]`);
+    if (el) el.classList.add("zipla");
+  }
+
+  function spendStar() {
+    let idx = -1;
+    for (let i = starStates.length - 1; i >= 0; i--) {
+      if (starStates[i] === "earned") { idx = i; break; }
+    }
+    if (idx < 0) return false;
+    starStates[idx] = "spent";
+    renderStars();
+    const el = yildizSeridi.querySelector(`[data-index="${idx}"]`);
+    if (el) el.classList.add("son");
+    return true;
+  }
+
+  function earnedCount() { return starStates.filter(s => s === "earned").length; }
+
+  function updateListenBadge() {
+    maliyetEl.classList.toggle("gizli", dinlenenler.has(sira));
+  }
+
+  function renderStickerCounter() {
+    sonCikartmaEl.textContent = sonKazanilan;
+    cikartmaToplamEl.textContent = String(stickers.length);
+  }
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function drawCard(correct) {
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(280, rect.width || 520);
+    const h = Math.max(210, rect.height || 260);
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    const taban = bosluk + ustYuk;
-    const yatay = (y) => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); };
-    ctx.strokeStyle = token("--cizgi"); ctx.lineWidth = Math.max(1, boy / 90);
-    yatay(taban - ustYuk);
-    yatay(taban + altYuk);
-    ctx.strokeStyle = token("--cizgi-koyu");
-    ctx.setLineDash([boy * 0.06, boy * 0.06]);
-    yatay(taban - xYuk);
-    ctx.setLineDash([]);
-    ctx.lineWidth = Math.max(1.5, boy / 60);
-    yatay(taban);
-    const kenarX = Math.round(w * 0.09) + 0.5;
-    ctx.strokeStyle = token("--kenar"); ctx.lineWidth = Math.max(1.5, boy / 85);
-    ctx.beginPath(); ctx.moveTo(kenarX, 0); ctx.lineTo(kenarX, h); ctx.stroke();
+    ctx.fillStyle = css("--kart");
+    ctx.fillRect(0, 0, w, h);
 
-    ctx.font = yazi;
-    ctx.fillStyle = vurguRenk || token("--murekkep");
-    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    ctx.fillText(metin, (kenarX + w) / 2, taban);
-  }
-  let cizimBekliyor = false;
-  function yenidenCiz() {
-    if (cizimBekliyor) return;
-    cizimBekliyor = true;
-    requestAnimationFrame(() => { cizimBekliyor = false; heceyiCiz(); });
-  }
+    const top = h * .23;
+    const mid = h * .44;
+    const base = h * .69;
+    const bottom = h * .86;
 
-  // ——— Yıldızlar ———
-  function yildizlariCiz() {
-    el.yildizlar.innerHTML = "";
-    for (let i = 0; i < sira.length; i++) {
-      const li = document.createElement("li");
-      li.className = "yildiz" + (i < yildiz ? " dolu" : "");
-      li.innerHTML = YILDIZ_SVG;
-      el.yildizlar.appendChild(li);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css("--cizgi");
+    line(0, top, w, top);
+
+    ctx.save();
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = css("--orta-cizgi");
+    line(0, mid, w, mid);
+    ctx.restore();
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = css("--taban");
+    line(0, base, w, base);
+
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css("--cizgi");
+    line(0, bottom, w, bottom);
+
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = css("--kenar");
+    line(Math.max(28, w * .08), 0, Math.max(28, w * .08), h);
+
+    const word = hedef();
+    let size = Math.min(126, h * .51);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `700 ${size}px Andika, sans-serif`;
+    const maxWidth = w * .72;
+    while (ctx.measureText(word).width > maxWidth && size > 54) {
+      size -= 4;
+      ctx.font = `700 ${size}px Andika, sans-serif`;
     }
-    el.yildizlar.setAttribute("aria-label", `Bu tur ${yildiz} / ${sira.length} yıldız`);
-  }
-  function yildizEkle() {
-    yildiz++;
-    const li = el.yildizlar.children[yildiz - 1];
-    if (li) { li.classList.remove("kayip"); li.classList.add("dolu", "yeni"); setTimeout(() => li.classList.remove("yeni"), 700); }
-    el.yildizlar.setAttribute("aria-label", `Bu tur ${yildiz} / ${sira.length} yıldız`);
-  }
-  function yildizEksilt() {
-    if (yildiz <= 0) return;
-    yildiz--;
-    const li = el.yildizlar.children[yildiz];
-    if (li) {
-      li.classList.remove("dolu", "yeni", "kayip"); void li.offsetWidth; li.classList.add("kayip");
-      setTimeout(() => li.classList.remove("kayip"), 700);
-    }
-    el.yildizlar.setAttribute("aria-label", `Bu tur ${yildiz} / ${sira.length} yıldız`);
-  }
+    ctx.fillStyle = correct ? css("--dogru") : css("--yazi");
+    ctx.fillText(word, w / 2 + w * .015, base - 3);
 
-  // ——— Akış ———
-  function karistir(d) {
-    for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
-    return d;
-  }
-  function durum(metin, tur) { el.durum.textContent = metin; el.durum.dataset.tur = tur || ""; }
-  function bosDurum() {
-    durum(mod === "ses" ? "Mikrofona dokun, heceyi oku." : "Çocuk heceyi okusun; doğruysa ✓ tuşuna basın.");
-  }
-  function animasyon(sinif) {
-    el.kart.classList.remove(sinif); void el.kart.offsetWidth; el.kart.classList.add(sinif);
-  }
-  function yeniTur() {
-    sira = karistir(HECELER.slice());
-    if (sira.length > 1 && sira[0] === sonHece) [sira[0], sira[1]] = [sira[1], sira[0]];
-    idx = 0; yildiz = 0;
-    yildizlariCiz();
-    heceGoster();
-  }
-  function heceGoster() {
-    const hedef = sira[idx];
-    sonHece = hedef;
-    vurguRenk = null;
-    el.kart.classList.remove("basarili");
-    el.hece.setAttribute("aria-label", "Hece: " + hedef);
-    heceyiCiz();
-    animasyon("giris");
-    bosDurum();
-    el.duyulan.textContent = "";
-    sonDuyulan = "";
-    el.onay.hidden = true;
-    mesgul = false;
-    el.mikrofon.disabled = konusuyor;
-    dinlendi = false;
-    yardimDurumu();
-  }
-  function basari() {
-    if (mesgul) return;
-    mesgul = true;
-    el.mikrofon.disabled = true;
-    yardimDurumu();
-    el.onay.hidden = true;
-    el.duyulan.textContent = "";
-    ses.basari();
-    yildizEkle();
-    vurguRenk = token("--dogru");
-    heceyiCiz();
-    animasyon("basarili");
-    durum(rastgele(OVGULER), "iyi");
-    konfeti(el.kart, 70);
-    setTimeout(() => {
-      idx++;
-      if (idx >= sira.length) turBitti(); else heceGoster();
-    }, 1500);
-  }
-  function tekrar(duyulan, mesaj) {
-    ses.tekrar();
-    animasyon("salla");
-    durum(mesaj || "Bir daha deneyelim!", "tekrar");
-    const k = String(duyulan || "").trim();
-    sonDuyulan = k;
-    el.duyulan.textContent = k ? `Duyduğum: “${k.length > 40 ? k.slice(0, 40) + "…" : k}”` : "";
-    if (mod === "ses") el.onay.hidden = false;
-  }
-  function turBitti() {
-    const yeniler = CIKARTMALAR.filter((c) => !raf.includes(c));
-    const kazanilan = rastgele(yeniler.length ? yeniler : CIKARTMALAR);
-    raf.push(kazanilan);
-    rafYaz(); rafGoster();
-    el.perdeCikartma.textContent = kazanilan;
-    el.perdeRaf.innerHTML = "";
-    raf.forEach((c, i) => {
-      const s = document.createElement("span");
-      s.textContent = c;
-      if (i === raf.length - 1) s.className = "yeni";
-      el.perdeRaf.appendChild(s);
-    });
-    el.perde.hidden = false;
-    ses.fanfar();
-    konfeti(null, 150);
-    el.yeniTur.focus();
-  }
-  el.yeniTur.addEventListener("click", () => { el.perde.hidden = true; yeniTur(); });
-
-  // ——— Ses tanıma ———
-  function dinlemeDurumu(hal) {               // false | "hazirlan" | "dinle"
-    el.mikrofon.classList.toggle("hazirlaniyor", hal === "hazirlan");
-    el.mikrofon.classList.toggle("dinliyor", hal === "dinle");
-    el.mikrofon.setAttribute("aria-label", hal ? "Dinlemeyi bitir" : "Dinlemeye başla");
-    el.mikEtiket.textContent = hal === "dinle" ? "Dinliyorum…" : hal === "hazirlan" ? "Bekle…" : "Dokun ve oku";
-    if (hal === "hazirlan") { durum("Bekle…"); el.duyulan.textContent = ""; el.onay.hidden = true; }
-    if (hal === "dinle") durum("Şimdi oku!");
-    yardimDurumu();
-  }
-  const kisalt = (s) => (s.length > 40 ? s.slice(0, 40) + "…" : s);
-  function dinle() {
-    if (mesgul || konusuyor) return;
-    if (tanima) { try { tanima.stop(); } catch (_) {} return; }
-    ses.hazir();
-    const r = new SR();
-    // Sürekli dinleme: çocuk heceyi bölerek okursa ("a… na") parçalar birleşir; bitişe sessizlikten biz karar veririz.
-    r.lang = "tr-TR"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
-    const hedef = sira[idx];
-    const onek = HECELER.some((h) => h !== hedef && h.startsWith(hedef)); // "a" duyulunca "ana" olabilir, biraz bekle
-    let bitti = false, hazirOldu = false, durdu = false, hata = null, son = null, dogruGoruldu = false;
-    const z = {};
-    const kur = (ad, ms, fn) => { clearTimeout(z[ad]); z[ad] = setTimeout(fn, ms); };
-
-    const sonuclandir = () => {
-      if (bitti) return;
-      bitti = true;
-      Object.values(z).forEach(clearTimeout);
-      if (tanima === r) tanima = null;
-      try { r.abort(); } catch (_) {}
-      dinlemeDurumu(false);
-      if (hata === "aborted" && !durdu) { hataGoster("aborted"); return; }
-      if (!son) { hataGoster(hata || "no-speech"); return; }
-      let k = degerlendir(son.adaylar, hedef, HECELER);
-      if (!k && dogruGoruldu) k = "dogru";
-      if (k === "dogru") basari();
-      else tekrar(son.metin, k === "yanlis" ? ipucu(hedef, duyulanHece(son.metin, HECELER)) : "Tam anlayamadım, bir daha oku.");
-    };
-    const durdur = () => {                    // dinlemeyi kapat, son sonucu kısa bir süre bekle
-      if (bitti || durdu) return;
-      durdu = true;
-      try { r.stop(); } catch (_) {}
-      kur("son", 900, sonuclandir);
-    };
-    const hazir = () => {                     // mikrofon gerçekten açılınca "Şimdi oku!"
-      if (bitti || hazirOldu) return;
-      hazirOldu = true;
-      dinlemeDurumu("dinle");
-      kur("ipucu", 4000, () => { if (!son && !bitti) durum("Sesleri uzatarak, yüksek sesle oku!"); });
-    };
-
-    r.onstart = () => {
-      dinlemeDurumu("hazirlan");
-      kur("hazir", 800, hazir);
-      kur("sigorta", 9000, durdur);
-    };
-    r.onaudiostart = () => kur("hazir", 300, hazir);   // mikrofonun ilk anı çoğu zaman sessiz kalır
-    r.onresult = (e) => {
-      if (bitti) return;
-      const once = [];
-      for (let i = 0; i < e.results.length - 1; i++) once.push(e.results[i] && e.results[i][0] ? e.results[i][0].transcript : "");
-      const sonSonuc = e.results[e.results.length - 1];
-      const adaylar = (sonSonuc ? Array.from(sonSonuc, (a) => (once.join(" ") + " " + (a.transcript || "")).trim()) : []).filter(Boolean);
-      if (!adaylar.length) return;
-      hazir();
-      clearTimeout(z.ipucu);
-      son = { metin: adaylar[0], adaylar };
-      el.duyulan.textContent = `Duyduğum: “${kisalt(son.metin)}”`;
-      const k = degerlendir(adaylar, hedef, HECELER);
-      if (k === "dogru") { dogruGoruldu = true; kur("karar", onek ? 1000 : 400, sonuclandir); }
-      else if (!durdu) kur("karar", 1500, durdur);
-    };
-    r.onspeechend = () => { if (!bitti && !durdu && !son) kur("karar", 1200, durdur); };
-    r.onnomatch = () => { hata = hata || "no-match"; };
-    r.onerror = (e) => { hata = e.error || "bilinmiyor"; kur("son", 600, sonuclandir); };
-    r.onend = () => { if (!bitti) sonuclandir(); };
-
-    tanima = r;
-    try { r.start(); } catch (_) { bitti = true; tanima = null; dinlemeDurumu(false); hataGoster("baslamadi"); }
-  }
-  function hataGoster(hata) {
-    switch (hata) {
-      case "not-allowed":
-      case "service-not-allowed":
-        ebeveynModu("Mikrofon izni verilmedi ya da bu ekran mikrofona izin vermiyor. Sayfayı Chrome'da (bilgisayar, Android) veya Safari'de (iPhone, iPad) açıp mikrofona izin verin.");
-        break;
-      case "language-not-supported":
-        ebeveynModu("Bu cihazda Türkçe ses tanıma yok.");
-        break;
-      case "audio-capture":
-        durum("Mikrofon bulunamadı. Mikrofonu kontrol edip tekrar dokunun.", "tekrar");
-        break;
-      case "network":
-        durum("Ses tanıma için internet bağlantısı gerekiyor.", "tekrar");
-        break;
-      case "aborted":
-        bosDurum();
-        break;
-      case "no-match":
-        tekrar("", "Tam anlayamadım, bir daha oku.");
-        break;
-      case "baslamadi":
-        durum("Dinleme başlamadı, tekrar dokunun.", "tekrar");
-        break;
-      default:
-        tekrar("", "Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.");
+    if (correct) {
+      ctx.save();
+      ctx.fillStyle = css("--dogru");
+      ctx.font = `800 ${Math.min(46, w * .1)}px "Baloo 2", sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText("✓", w - 18, 12);
+      ctx.restore();
     }
   }
-  function ebeveynModu(neden) {
-    mod = "ebeveyn";
-    el.uyariMetin.textContent = neden + " Şimdilik çocuk doğru okuyunca ✓ tuşuna siz basın.";
-    el.uyari.hidden = false;
-    el.mikrofon.classList.add("onayla");
-    el.mikrofon.setAttribute("aria-label", "Doğru okudu");
-    el.ikonMik.setAttribute("hidden", ""); el.ikonOnay.removeAttribute("hidden");
-    el.mikEtiket.textContent = "Doğru okudu";
-    el.onay.hidden = true;
-    el.duyulan.textContent = "";
-    bosDurum();
+
+  function line(x1, y1, x2, y2) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
 
-  el.mikrofon.addEventListener("click", () => {
-    if (konusuyor) return;
-    if (mod === "ses") dinle(); else { ses.hazir(); basari(); }
-  });
-  // Ebeveyn düzeltmesi: tanıyıcı yanılırsa basılı tutunca doğru sayılır ve duyulan bu hece için öğrenilir.
-  function ebeveynOnayi() {
-    if (mesgul) return;
-    const hedef = sira[idx];
-    const k = sonDuyulan ? ogrenilecek(sonDuyulan, hedef, HECELER) : null;
-    if (k) {
-      OGRENILEN[k] = hedef;
-      try { localStorage.setItem(OGRENME_KAYIT, JSON.stringify(OGRENILEN)); } catch (_) {}
+  function unlockAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
     }
-    const not = k ? `Öğrendim: “${kisalt(sonDuyulan)}” artık “${hedef}” sayılacak.` : "";
-    basari();
-    el.duyulan.textContent = not;
+    if (audioCtx?.state === "suspended") audioCtx.resume().catch(() => {});
   }
-  let basiliSayac = null;
-  const birak = () => { clearTimeout(basiliSayac); el.onay.classList.remove("basili"); };
-  el.onay.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    if (mesgul) return;
-    el.onay.classList.add("basili");
-    basiliSayac = setTimeout(() => { birak(); ebeveynOnayi(); }, 800);
-  });
-  ["pointerup", "pointerleave", "pointercancel"].forEach((t) => el.onay.addEventListener(t, birak));
-  el.onay.addEventListener("contextmenu", (e) => e.preventDefault());
-  el.onay.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ebeveynOnayi(); }
-  });
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && tanima) { try { tanima.abort(); } catch (_) {} }
-    if (document.hidden && konusuyor && sentez) { try { sentez.cancel(); } catch (_) {} }
-  });
+  document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
 
-  // ——— Dinle yardımı: heceyi Türkçe sesle okur; her hecede ilk dinleme bir yıldız götürür ———
-  function trSesi() {
-    const liste = sentez.getVoices() || [];
-    if (!liste.length) return undefined; // ses listesi henüz gelmediyse dili belirtip cihaza bırak
-    return liste.find((v) => /^tr([-_]|$)/i.test(v.lang || "")) || null;
+  function note(freq, when, duration, gain = .12, type = "sine") {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, when);
+    g.gain.setValueAtTime(.0001, when);
+    g.gain.exponentialRampToValueAtTime(gain, when + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, when + duration);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start(when);
+    osc.stop(when + duration + .03);
   }
-  function yardimDurumu() {
-    const acik = !!sentez && !mesgul && !tanima && !konusuyor && (dinlendi || yildiz > 0);
-    el.dinle.setAttribute("aria-disabled", acik ? "false" : "true");
-    el.dinle.classList.toggle("bedava", dinlendi);
-    el.dinle.setAttribute("aria-label", dinlendi ? "Heceyi tekrar dinle" : "Heceyi dinle, bir yıldız gider");
+
+  function playCorrect() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .01;
+    note(523.25, t, .14, .11, "triangle");
+    note(659.25, t + .12, .16, .11, "triangle");
+    note(783.99, t + .25, .22, .12, "triangle");
   }
-  function dinlet() {
-    if (!sentez || mesgul || tanima || konusuyor) return;
-    if (!dinlendi && yildiz <= 0) {
-      el.yildizlar.classList.remove("yok"); void el.yildizlar.offsetWidth; el.yildizlar.classList.add("yok");
-      durum("Dinlemek için önce bir yıldız kazan.", "tekrar");
+
+  function playWrong() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .01;
+    note(392, t, .18, .08, "sine");
+    note(293.66, t + .16, .22, .08, "sine");
+  }
+
+  function playFanfare() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .02;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, t + i * .11, .28, .10, "triangle"));
+  }
+
+  function confetti(count = 34) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const palette = ["#FFB000", "#EB5530", "#13985A", "#6A52D8", "#42A5F5", "#EC6AA6"];
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("i");
+      p.className = "konfeti";
+      p.style.background = palette[i % palette.length];
+      p.style.left = `${10 + Math.random() * 80}%`;
+      p.style.setProperty("--x", `${-140 + Math.random() * 280}px`);
+      p.style.setProperty("--r", `${-360 + Math.random() * 720}deg`);
+      p.style.setProperty("--sure", `${1.05 + Math.random() * .9}s`);
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2200);
+    }
+  }
+
+  function updateLocks() {
+    mikrofonBtn.disabled = speaking || currentCorrect;
+    dinleBtn.disabled = listening || speaking || currentCorrect;
+  }
+
+  function stopAllSpeech() {
+    try { window.speechSynthesis?.cancel(); } catch (_) {}
+    if (listening) {
+      try { recognition?.abort(); } catch (_) {}
+    }
+    speaking = false;
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    clearSessionTimers();
+    updateLocks();
+  }
+
+  function speechCtor() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+
+  function setupRecognition() {
+    const SR = speechCtor();
+    if (!SR) {
+      enterParentMode("Bu cihazda ses tanıma yok. Çocuğunuz okusun, sonra “Doğru okudu”ya basın.");
       return;
     }
-    const tr = trSesi();
-    if (tr === null) { durum("Bu cihazda Türkçe okuma sesi bulunamadı.", "tekrar"); return; }
-    if (sentez.speaking || sentez.pending) sentez.cancel();
-    const no = ++konusmaNo;
-    const u = new SpeechSynthesisUtterance(sira[idx]);
-    u.lang = "tr-TR"; if (tr) u.voice = tr;
-    u.rate = 0.8; u.pitch = 1; u.volume = 1;
-    let basladi = false, sigorta = null, sigorta2 = null;
-    const basla = () => {
-      if (basladi || no !== konusmaNo) return;
-      basladi = true;
-      if (!dinlendi) { dinlendi = true; yildizEksilt(); }
-      yardimDurumu();
-    };
-    const bitir = () => {
-      if (no !== konusmaNo || !konusuyor) return;
-      konusuyor = false;
-      clearTimeout(sigorta); clearTimeout(sigorta2);
-      el.dinle.classList.remove("caliyor");
-      if (!mesgul) { el.mikrofon.disabled = false; if (basladi) durum("Şimdi sen oku!"); }
-      yardimDurumu();
-    };
-    u.onstart = basla; u.onend = bitir; u.onerror = bitir;
-    konusuyor = true;
-    el.dinle.classList.add("caliyor");
-    el.mikrofon.disabled = true;
-    el.duyulan.textContent = ""; el.onay.hidden = true;
-    durum("Dinle…");
-    yardimDurumu();
-    sentez.speak(u);
-    sigorta = setTimeout(() => {
-      if (basladi) return;
-      if (sentez.speaking) { basla(); return; } // başladığını bildirmeyen ses motorları
-      try { sentez.cancel(); } catch (_) {}
-      bitir();
-      durum("Ses çalınamadı. Telefonun sessiz modda olmadığına bakın.", "tekrar");
-    }, 2500);
-    sigorta2 = setTimeout(bitir, 8000);
-  }
-  el.dinle.addEventListener("click", dinlet);
 
-  // ——— Konfeti ———
-  let konfetiKare = 0;
-  function konfeti(kaynak, adet) {
-    if (azHareket.matches) return;
-    const c = el.konfeti, ctx = c.getContext("2d");
-    const W = window.innerWidth, H = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const k = kaynak ? kaynak.getBoundingClientRect() : { left: 0, top: H * 0.35, width: W, height: 0 };
-    const renkler = ["--yildiz", "--dogru", "--mikrofon", "--tekrar", "--cizgi-koyu"].map(token);
-    const parcalar = Array.from({ length: adet }, () => ({
-      x: k.left + k.width / 2 + (Math.random() - 0.5) * k.width * 0.7,
-      y: k.top + k.height * 0.45,
-      vx: (Math.random() - 0.5) * 10, vy: -Math.random() * 10 - 4,
-      a: Math.random() * Math.PI, va: (Math.random() - 0.5) * 0.3,
-      s: 7 + Math.random() * 8, renk: rastgele(renkler), sekil: Math.floor(Math.random() * 3)
-    }));
-    const basla = performance.now(), omur = 1700;
-    cancelAnimationFrame(konfetiKare);
-    const kare = (t) => {
-      const gecen = t - basla;
-      ctx.clearRect(0, 0, W, H);
-      ctx.globalAlpha = Math.max(0, 1 - gecen / omur);
-      for (const p of parcalar) {
-        p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.a += p.va;
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.renk;
-        if (p.sekil === 0) ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
-        else if (p.sekil === 1) { ctx.beginPath(); ctx.arc(0, 0, p.s / 2.6, 0, Math.PI * 2); ctx.fill(); }
-        else {
-          ctx.beginPath();
-          for (let i = 0; i < 10; i++) {
-            const aci = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? p.s * 0.25 : p.s * 0.6;
-            ctx.lineTo(Math.cos(aci) * r, Math.sin(aci) * r);
-          }
-          ctx.closePath(); ctx.fill();
+    recognition = new SR();
+    recognition.lang = "tr-TR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 5;
+
+    recognition.onstart = () => {
+      startAt = performance.now();
+      clearTimer("fallbackReady");
+      timers.fallbackReady = setTimeout(showReady, 800);
+      clearTimer("four");
+      timers.four = setTimeout(() => {
+        if (listening && !gotAnyResult && !decided) setDurum("Sesleri uzatarak, yüksek sesle oku!", "tekrar");
+      }, 4000);
+      clearTimer("nine");
+      timers.nine = setTimeout(() => {
+        if (listening && !gotAnyResult && !decided) {
+          setDurum("Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.", "tekrar");
+          try { recognition.stop(); } catch (_) {}
         }
-        ctx.restore();
-      }
-      if (gecen < omur) konfetiKare = requestAnimationFrame(kare);
-      else { ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H); }
+      }, 9000);
     };
-    konfetiKare = requestAnimationFrame(kare);
+
+    recognition.onaudiostart = () => {
+      clearTimer("fallbackReady");
+      clearTimer("ready");
+      timers.ready = setTimeout(showReady, 300);
+    };
+
+    recognition.onresult = (event) => {
+      if (!listening || decided) return;
+      gotAnyResult = true;
+      clearTimer("four");
+      clearTimer("nine");
+      clearTimer("accept");
+      clearTimer("inactivity");
+      clearTimer("stopEval");
+
+      lastCandidates = buildCandidates(event);
+      setDuyulan(lastCandidates[0] || "");
+      const verdict = adaylariKararVer(lastCandidates, hedef(), HECELER, learnedMap);
+      lastVerdict = verdict.karar;
+      if (verdict.karar === "dogru") sessionSeenCorrect = true;
+
+      if (verdict.karar === "dogru") {
+        const wait = hedefBaskaHeceninBasiMi(hedef()) ? 1000 : 400;
+        timers.accept = setTimeout(() => finishDecision("dogru", verdict), wait);
+      } else {
+        timers.inactivity = setTimeout(() => {
+          if (!listening || decided) return;
+          try { recognition.stop(); } catch (_) { evaluateAtEnd(); }
+          timers.stopEval = setTimeout(evaluateAtEnd, 900);
+        }, 1500);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      const err = event.error || "";
+      if (["not-allowed", "service-not-allowed", "language-not-supported"].includes(err)) {
+        const reason = err === "language-not-supported"
+          ? "Türkçe ses tanıma desteklenmiyor. Ebeveyn modu açıldı."
+          : "Mikrofon izni verilmedi. Ebeveyn modu açıldı.";
+        enterParentMode(reason);
+        return;
+      }
+      if (err === "audio-capture") {
+        decided = true;
+        setDurum("Mikrofon bulunamadı", "uyari");
+        showParentOverride();
+      } else if (err === "network") {
+        decided = true;
+        setDurum("Ses tanıma için internet gerekiyor", "uyari");
+        showParentOverride();
+      } else if (err !== "aborted" && err !== "no-speech") {
+        decided = true;
+        setDurum("Tam anlayamadım, bir daha oku.", "tekrar");
+        showParentOverride();
+      }
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      mikrofonWrap.classList.remove("dinliyor");
+      updateLocks();
+      if (!decided && !parentMode) evaluateAtEnd();
+    };
   }
 
-  // ——— Başlangıç ———
-  if (sentez) { sentez.getVoices(); sentez.onvoiceschanged = () => sentez.getVoices(); }
-  else el.dinle.closest(".yardim-kutu").hidden = true;
-  rafGoster();
-  yeniTur();
-  if (!SR) ebeveynModu("Bu tarayıcı Türkçe sesli kontrolü desteklemiyor. Bilgisayarda veya Android'de Chrome, iPhone'da Safari kullanın.");
-  if (window.ResizeObserver) new ResizeObserver(yenidenCiz).observe(el.kart);
-  else window.addEventListener("resize", yenidenCiz);
-  if (document.fonts) {
-    document.fonts.load('700 100px "Andika"').then(yenidenCiz, () => {});
-    document.fonts.ready.then(yenidenCiz, () => {});
+  function buildCandidates(event) {
+    const results = event.results;
+    if (!results || !results.length) return [];
+    const lastIndex = results.length - 1;
+    let prefix = "";
+    for (let i = 0; i < lastIndex; i++) {
+      const t = results[i]?.[0]?.transcript?.trim();
+      if (t) prefix += (prefix ? " " : "") + t;
+    }
+    const last = results[lastIndex];
+    const out = [];
+    const n = Math.min(last.length || 0, recognition?.maxAlternatives || 5);
+    for (let i = 0; i < n; i++) {
+      const t = last[i]?.transcript?.trim();
+      const combined = [prefix, t].filter(Boolean).join(" ").trim();
+      if (combined && !out.includes(combined)) out.push(combined);
+    }
+    if (!out.length && prefix) out.push(prefix);
+    return out;
   }
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", yenidenCiz);
+
+  function hedefBaskaHeceninBasiMi(h) {
+    return HECELER.some(x => x !== h && x.startsWith(h));
+  }
+
+  function showReady() {
+    if (!listening || decided) return;
+    setDurum("Şimdi oku!");
+    mikrofonWrap.classList.add("dinliyor");
+  }
+
+  function startListening() {
+    if (parentMode) {
+      correctAnswer({ viaParentMode: true });
+      return;
+    }
+    if (!recognition || listening || speaking || currentCorrect) return;
+    unlockAudio();
+    clearSessionTimers();
+    decided = false;
+    gotAnyResult = false;
+    sessionSeenCorrect = false;
+    lastCandidates = [];
+    lastVerdict = "belirsiz";
+    setDuyulan("");
+    ebeveynOnay.hidden = true;
+    setDurum("Bekle…");
+    listening = true;
+    updateLocks();
+    try {
+      recognition.start();
+    } catch (_) {
+      listening = false;
+      updateLocks();
+      setDurum("Bir daha dokun ve oku.", "tekrar");
+    }
+  }
+
+  function evaluateAtEnd() {
+    if (decided || parentMode) return;
+    clearTimer("stopEval");
+    clearTimer("accept");
+    clearTimer("inactivity");
+    if (!lastCandidates.length) {
+      if (gotAnyResult) {
+        finishDecision("belirsiz", null);
+      } else {
+        setDurum("Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.", "tekrar");
+        showParentOverride();
+      }
+      return;
+    }
+    const verdict = adaylariKararVer(lastCandidates, hedef(), HECELER, learnedMap);
+    if (verdict.karar === "belirsiz" && sessionSeenCorrect) {
+      finishDecision("dogru", verdict);
+    } else {
+      finishDecision(verdict.karar, verdict);
+    }
+  }
+
+  function finishDecision(kind, verdict) {
+    if (decided) return;
+    decided = true;
+    clearSessionTimers();
+    if (listening) {
+      try { recognition.stop(); } catch (_) {}
+    }
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    updateLocks();
+
+    if (kind === "dogru") correctAnswer({ verdict });
+    else if (kind === "yanlis") wrongAnswer(verdict);
+    else uncertainAnswer(verdict);
+  }
+
+  function correctAnswer() {
+    if (currentCorrect) return;
+    currentCorrect = true;
+    lastVerdict = "dogru";
+    ebeveynOnay.hidden = true;
+    drawCard(true);
+    earnStar(sira);
+    playCorrect();
+    confetti(24);
+    setDurum(OVGULER[Math.floor(Math.random() * OVGULER.length)], "dogru");
+    updateLocks();
+    clearTimer("next");
+    timers.next = setTimeout(() => {
+      sira++;
+      if (sira >= tur.length) endRound();
+      else yeniHeceUI();
+    }, 1500);
+  }
+
+  function wrongAnswer(verdict) {
+    lastVerdict = "yanlis";
+    playWrong();
+    kartWrap.classList.remove("salla");
+    void kartWrap.offsetWidth;
+    kartWrap.classList.add("salla");
+    setDurum(buildHint(verdict?.aday || lastHeard), "tekrar");
+    showParentOverride();
+    updateLocks();
+  }
+
+  function uncertainAnswer() {
+    lastVerdict = "belirsiz";
+    setDurum("Tam anlayamadım, bir daha oku.", "tekrar");
+    showParentOverride();
+    updateLocks();
+  }
+
+  function buildHint(heardText) {
+    const known = getKnownLetters(HECELER);
+    const joined = sadelestirMetin(heardText, known).join("");
+    const h = hedef();
+    if (h.length > 1 && joined === h.slice(0, -1)) return `Sondaki “${h.at(-1)}” sesini de söyle!`;
+    if (h.length > 1 && joined === h.slice(1)) return `Baştaki “${h[0]}” sesini de söyle!`;
+    if ([...h].reverse().join("") === joined && joined !== h) return "Soldan sağa doğru oku!";
+    return "Bir daha deneyelim!";
+  }
+
+  function showParentOverride() {
+    if (!parentMode) ebeveynOnay.hidden = false;
+  }
+
+  function enterParentMode(message) {
+    parentMode = true;
+    clearSessionTimers();
+    if (listening) {
+      try { recognition?.abort(); } catch (_) {}
+    }
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    mikrofonBtn.classList.add("ebeveyn");
+    micIkon.textContent = "✓";
+    micYazi.textContent = "Doğru okudu";
+    ebeveynOnay.hidden = true;
+    setDurum(message, "uyari");
+    updateLocks();
+  }
+
+  function simplifyForLearning(text) {
+    const known = getKnownLetters(HECELER);
+    const words = sadelestirMetin(text, known);
+    return words.length === 1 ? words[0] : "";
+  }
+
+  function approveByParentHold() {
+    const key = simplifyForLearning(lastHeard);
+    let learnedMessage = "";
+    if (lastVerdict === "belirsiz" && key) {
+      const exactOther = HECELER.includes(key) && key !== hedef();
+      const cls = siniflandir(key, HECELER, learnedMap);
+      const resemblesOther = cls.hece && cls.hece !== hedef();
+      if (!exactOther && !resemblesOther) {
+        learnedMap[key] = hedef();
+        safeWrite(LS_LEARNED, learnedMap);
+        learnedMessage = `Öğrendim: “${lastHeard}” artık “${hedef()}” sayılacak.`;
+      }
+    }
+    correctAnswer({ viaHold: true });
+    if (learnedMessage) setDurum(learnedMessage, "dogru");
+  }
+
+  let holdTimer = null;
+  function holdStart(e) {
+    e.preventDefault();
+    if (ebeveynOnay.hidden) return;
+    ebeveynOnay.classList.add("basili");
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      ebeveynOnay.classList.remove("basili");
+      approveByParentHold();
+    }, 800);
+  }
+  function holdCancel(e) {
+    if (e) e.preventDefault();
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    ebeveynOnay.classList.remove("basili");
+  }
+  ebeveynOnay.addEventListener("pointerdown", holdStart);
+  ["pointerup","pointercancel","pointerleave"].forEach(ev => ebeveynOnay.addEventListener(ev, holdCancel));
+  ebeveynOnay.addEventListener("contextmenu", e => e.preventDefault());
+
+  function chooseTurkishVoice() {
+    const voices = window.speechSynthesis?.getVoices?.() || [];
+    return voices.find(v => (v.lang || "").toLocaleLowerCase("tr-TR").startsWith("tr")) || null;
+  }
+
+  function listenSyllable() {
+    if (!window.speechSynthesis || speaking || listening || currentCorrect) return;
+    unlockAudio();
+
+    const firstThisSyllable = !dinlenenler.has(sira);
+    if (firstThisSyllable && earnedCount() === 0) {
+      yildizSeridi.classList.remove("salla");
+      void yildizSeridi.offsetWidth;
+      yildizSeridi.classList.add("salla");
+      setDurum("Dinlemek için önce bir yıldız kazan.", "tekrar");
+      return;
+    }
+
+    const voice = chooseTurkishVoice();
+    if (!voice) {
+      setDurum("Bu cihazda Türkçe okuma sesi bulunamadı.", "uyari");
+      return;
+    }
+
+    if (firstThisSyllable) {
+      if (!spendStar()) return;
+      dinlenenler.add(sira);
+      updateListenBadge();
+    }
+
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(hedef());
+    u.lang = "tr-TR";
+    u.rate = .8;
+    u.voice = voice;
+    u.onstart = () => { speaking = true; updateLocks(); };
+    u.onend = u.onerror = () => { speaking = false; updateLocks(); };
+    speaking = true;
+    updateLocks();
+    window.speechSynthesis.speak(u);
+  }
+
+  function endRound() {
+    oncekiTurSonu = tur.at(-1);
+    const remaining = CIKARTMALAR.filter(x => !stickers.includes(x));
+    let won;
+    if (remaining.length) {
+      won = remaining[Math.floor(Math.random() * remaining.length)];
+      stickers.push(won);
+      safeWrite(LS_STICKERS, stickers);
+      odulMesaj.textContent = "Yeni bir çıkartma kazandın!";
+    } else {
+      won = CIKARTMALAR[Math.floor(Math.random() * CIKARTMALAR.length)];
+      odulMesaj.textContent = "Tüm çıkartmaları topladın!";
+    }
+    sonKazanilan = won;
+    renderStickerCounter();
+    buyukCikartma.textContent = won;
+    cikartmaRafi.textContent = stickers.join(" ") || won;
+    odulEkrani.hidden = false;
+    playFanfare();
+    confetti(70);
+  }
+
+  mikrofonBtn.addEventListener("click", startListening);
+  dinleBtn.addEventListener("click", listenSyllable);
+  yeniTurBtn.addEventListener("click", yeniTur);
+
+  if (!window.speechSynthesis) {
+    dinleBtn.style.display = "none";
+    maliyetEl.style.display = "none";
+  } else {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener?.("voiceschanged", () => window.speechSynthesis.getVoices());
+  }
+
+  window.addEventListener("resize", () => drawCard(currentCorrect));
+  const mediaDark = matchMedia("(prefers-color-scheme: dark)");
+  mediaDark.addEventListener?.("change", () => drawCard(currentCorrect));
+
+  yeniTur();
+  setupRecognition();
+  document.fonts?.ready?.then(() => drawCard(currentCorrect));
+
+  // Kabul örnekleri geliştirici konsolunda otomatik kontrol edilir.
+  const failures = matcherSelfTests();
+  if (failures.length) console.warn("Eşleştirme kabul testleri başarısız:", failures);
+  else console.info("Eşleştirme kabul testleri: tüm örnekler geçti.");
+
+  // İstenirse tarayıcı konsolundan yeniden çalıştırılabilir.
+  window.HeceOkumaTest = () => matcherSelfTests();
 })();
 </script>
 </body>
