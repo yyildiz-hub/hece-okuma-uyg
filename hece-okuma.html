@@ -163,6 +163,7 @@ button{font:inherit;color:inherit}
 .mikrofon:focus-visible{outline:4px solid var(--cizgi-koyu);outline-offset:4px}
 .mikrofon:disabled{opacity:.45;cursor:default}
 .mikrofon.dinliyor{box-shadow:0 0 0 8px var(--cizgi)}
+.mikrofon.hazirlaniyor{box-shadow:0 0 0 8px var(--cizgi);opacity:.8}
 .mikrofon.dinliyor::before,.mikrofon.dinliyor::after{
   content:"";position:absolute;inset:0;border-radius:50%;
   border:3px solid var(--mikrofon);animation:halka 1.4s ease-out infinite;
@@ -297,45 +298,71 @@ button{font:inherit;color:inherit}
   const KAYIT = "hece-okuma-cikartmalar";
 
   /*ESLESTIRME-BASLA*/
-  // Duyulan metni sadeleştirir: küçük harf, noktalama yok, kelimelere böl.
-  function temizle(metin) {
+  // Telefonun ses tanıması tek heceyi çoğu zaman benzer bir kelimeye çevirir: a → "Ah", nan → "Nam", ana → "Ama".
+  // Kural: hecelerde geçen harfler (şimdilik a, n, e) birebir uymalı; listede olmayan harfler (h, ğ, y, m, l…)
+  // tanıma hatası sayılır ve yakın sese ucuza bağlanır. Böylece "an" ile "na", "a" ile "e" ayrı kalır.
+  const UNLU = "aeıioöuü";
+  const YAKIN = { mn: 0.3, ln: 0.5, nr: 0.5, lr: 0.5, bp: 0.5, dt: 0.5, gk: 0.5, "cç": 0.5, fv: 0.5, sz: 0.5, "jş": 0.5 };
+  function kelimeler(metin) {
     return String(metin || "")
       .toLocaleLowerCase("tr-TR")
       .normalize("NFD").replace(/[̀-̂]/g, "").normalize("NFC")
       .replace(/[^a-zçğıöşü\s]/g, " ")
       .trim().split(/\s+/).filter(Boolean);
   }
-  // Tanıyıcının eklediği h seslerini (ha, ah) ve uzatmaları (aaa, naan) tolere eder.
-  function kanonik(kelime, hedef) {
-    let k = kelime;
-    if (!hedef.startsWith("h")) k = k.replace(/^h+/, "");
-    if (!hedef.endsWith("h")) k = k.replace(/h+$/, "");
-    return k.replace(/(.)\1+/g, "$1");
+  function sade(k, harf) {
+    if (!harf.has("ğ")) k = k.replace(/ğ/g, "");        // ğ yalnızca sesi uzatır
+    return k.replace(/(.)\1+/g, "$1");                   // naan → nan
   }
-  function esit(kelime, hedef) {
-    const k = kanonik(kelime, hedef), h = kanonik(hedef, hedef);
-    if (!k || !h) return false;
-    if (k === h) return true;
-    return k.length > h.length && k.length % h.length === 0 && k === h.repeat(k.length / h.length);
+  function fazlaBedel(x, harf) {                        // duyulanda fazladan bir harf
+    if (harf.has(x)) return 1;
+    return x === "h" ? 0.2 : x === "y" ? 0.4 : 0.9;
   }
-  // Tek bir tanıma sonucu hedef heceyle uyuşuyor mu?
-  function dogruMu(metin, hedef, liste) {
-    const kelimeler = temizle(metin);
-    if (!kelimeler.length) return false;
-    const digerleri = liste.filter((h) => h !== hedef);
-    const birlesik = kelimeler.join("");
-    if (esit(birlesik, hedef)) return true;                                   // "a na" -> ana
-    if (kelimeler.length > 1 && digerleri.some((h) => esit(birlesik, h))) return false;
-    const hedefVar = kelimeler.some((k) => esit(k, hedef));
-    const baskaVar = kelimeler.some((k) => digerleri.some((h) => esit(k, h)));
-    return hedefVar && !baskaVar;
+  function yerineBedel(x, y, harf) {                    // y yerine x duyulmuş
+    if (x === y) return 0;
+    const xu = UNLU.includes(x), yu = UNLU.includes(y);
+    if (xu !== yu) return 1.2;
+    if (xu || harf.has(x)) return 1;
+    return YAKIN[[x, y].sort().join("")] || 1;
   }
-  // En olası sonuç başka bir heceyse (an yerine na gibi) yanlış sayılır; değilse diğer tahminlere de bakılır.
-  function degerlendir(alternatifler, hedef, liste) {
-    const ust = alternatifler[0] || "";
-    if (dogruMu(ust, hedef, liste)) return true;
-    if (liste.some((h) => h !== hedef && dogruMu(ust, h, liste))) return false;
-    return alternatifler.slice(1).some((a) => dogruMu(a, hedef, liste));
+  function uzaklik(s, t, harf) {                        // ağırlıklı düzeltme uzaklığı
+    let ust = [0];
+    for (let j = 1; j <= t.length; j++) ust[j] = ust[j - 1] + 1;
+    for (let i = 1; i <= s.length; i++) {
+      const alt = [ust[0] + fazlaBedel(s[i - 1], harf)];
+      for (let j = 1; j <= t.length; j++) {
+        alt[j] = Math.min(ust[j] + fazlaBedel(s[i - 1], harf), alt[j - 1] + 1, ust[j - 1] + yerineBedel(s[i - 1], t[j - 1], harf));
+      }
+      ust = alt;
+    }
+    return ust[t.length];
+  }
+  function sinifla(kelime, liste, harf) {               // en yakın hece; emin değilse null
+    const k = sade(kelime, harf);
+    if (!k) return null;
+    const s = liste.map((h) => [h, uzaklik(k, sade(h, harf), harf)]).sort((p, q) => p[1] - q[1]);
+    const esik = s[0][0].length <= 2 ? 0.6 : 0.6 + 0.25 * (s[0][0].length - 2);
+    const ara = s.length > 1 ? s[1][1] - s[0][1] : Infinity;
+    return s[0][1] <= esik + 1e-9 && ara >= 0.25 - 1e-9 ? s[0][0] : null;
+  }
+  // Bir tanıma metni için karar: "dogru", "yanlis" (başka bir hece okundu) ya da null (anlaşılmadı).
+  function karar(metin, hedef, liste) {
+    const harf = new Set(liste.join(""));
+    const w = kelimeler(metin);
+    if (!w.length) return null;
+    const butun = sinifla(w.join(""), liste, harf);
+    if (butun === hedef) return "dogru";                             // "a na" → ana
+    if (w.length > 1 && butun) return "yanlis";                      // parçalar başka heceyi kuruyor
+    const s = w.map((k) => sinifla(k, liste, harf)).filter(Boolean);
+    if (!s.length) return butun ? "yanlis" : null;
+    const baska = new Set(s.filter((h) => h !== hedef));
+    return s[s.length - 1] === hedef && baska.size <= 1 ? "dogru" : "yanlis"; // tekrar ya da kendini düzeltme
+  }
+  // Tarayıcının en olası tahmini esastır; o belirsizse diğer tahminlere bakılır.
+  function degerlendir(adaylar, hedef, liste) {
+    const ust = karar(adaylar[0], hedef, liste);
+    if (ust) return ust;
+    return adaylar.slice(1).some((a) => karar(a, hedef, liste) === "dogru") ? "dogru" : null;
   }
   /*ESLESTIRME-BITIS*/
 
@@ -570,61 +597,84 @@ button{font:inherit;color:inherit}
   el.yeniTur.addEventListener("click", () => { el.perde.hidden = true; yeniTur(); });
 
   // ——— Ses tanıma ———
-  function dinlemeDurumu(acik) {
-    el.mikrofon.classList.toggle("dinliyor", acik);
-    el.mikrofon.setAttribute("aria-label", acik ? "Dinlemeyi bitir" : "Dinlemeye başla");
-    el.mikEtiket.textContent = acik ? "Dinliyorum…" : "Dokun ve oku";
-    if (acik) { durum("Şimdi oku!"); el.duyulan.textContent = ""; el.onay.hidden = true; }
+  function dinlemeDurumu(hal) {               // false | "hazirlan" | "dinle"
+    el.mikrofon.classList.toggle("hazirlaniyor", hal === "hazirlan");
+    el.mikrofon.classList.toggle("dinliyor", hal === "dinle");
+    el.mikrofon.setAttribute("aria-label", hal ? "Dinlemeyi bitir" : "Dinlemeye başla");
+    el.mikEtiket.textContent = hal === "dinle" ? "Dinliyorum…" : hal === "hazirlan" ? "Bekle…" : "Dokun ve oku";
+    if (hal === "hazirlan") { durum("Bekle…"); el.duyulan.textContent = ""; el.onay.hidden = true; }
+    if (hal === "dinle") durum("Şimdi oku!");
     yardimDurumu();
   }
+  const kisalt = (s) => (s.length > 40 ? s.slice(0, 40) + "…" : s);
   function dinle() {
     if (mesgul || konusuyor) return;
     if (tanima) { try { tanima.stop(); } catch (_) {} return; }
     ses.hazir();
     const r = new SR();
-    r.lang = "tr-TR"; r.continuous = false; r.interimResults = true; r.maxAlternatives = 5;
+    // Sürekli dinleme: çocuk heceyi bölerek okursa ("a… na") parçalar birleşir; bitişe sessizlikten biz karar veririz.
+    r.lang = "tr-TR"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
     const hedef = sira[idx];
-    let bitti = false, sonAra = null, hata = null, sessizlik = null, sigorta = null;
+    const onek = HECELER.some((h) => h !== hedef && h.startsWith(hedef)); // "a" duyulunca "ana" olabilir, biraz bekle
+    let bitti = false, hazirOldu = false, durdu = false, hata = null, son = null, dogruGoruldu = false;
+    const z = {};
+    const kur = (ad, ms, fn) => { clearTimeout(z[ad]); z[ad] = setTimeout(fn, ms); };
 
-    const bitir = () => {
-      clearTimeout(sessizlik); clearTimeout(sigorta);
-      if (tanima === r) tanima = null;
-      dinlemeDurumu(false);
-    };
-    const sonuclandir = (alts) => {
+    const sonuclandir = () => {
       if (bitti) return;
       bitti = true;
-      bitir();
+      Object.values(z).forEach(clearTimeout);
+      if (tanima === r) tanima = null;
       try { r.abort(); } catch (_) {}
-      if (degerlendir(alts, hedef, HECELER)) basari(); else tekrar(alts[0]);
+      dinlemeDurumu(false);
+      if (hata === "aborted" && !durdu) { hataGoster("aborted"); return; }
+      if (!son) { hataGoster(hata || "no-speech"); return; }
+      let k = degerlendir(son.adaylar, hedef, HECELER);
+      if (!k && dogruGoruldu) k = "dogru";
+      if (k === "dogru") basari();
+      else tekrar(son.metin, k === "yanlis" ? "" : "Tam anlayamadım, bir daha oku.");
+    };
+    const durdur = () => {                    // dinlemeyi kapat, son sonucu kısa bir süre bekle
+      if (bitti || durdu) return;
+      durdu = true;
+      try { r.stop(); } catch (_) {}
+      kur("son", 900, sonuclandir);
+    };
+    const hazir = () => {                     // mikrofon gerçekten açılınca "Şimdi oku!"
+      if (bitti || hazirOldu) return;
+      hazirOldu = true;
+      dinlemeDurumu("dinle");
+      kur("ipucu", 4000, () => { if (!son && !bitti) durum("Sesleri uzatarak, yüksek sesle oku!"); });
     };
 
     r.onstart = () => {
-      dinlemeDurumu(true);
-      sigorta = setTimeout(() => { try { r.stop(); } catch (_) {} }, 8000);
+      dinlemeDurumu("hazirlan");
+      kur("hazir", 700, hazir);
+      kur("sigorta", 9000, durdur);
     };
+    r.onaudiostart = () => kur("hazir", 150, hazir);
     r.onresult = (e) => {
-      const sonuc = e.results[e.results.length - 1];
-      if (!sonuc) return;
-      const alts = Array.from(sonuc, (a) => a.transcript).filter((t) => t && t.trim());
-      if (!alts.length) return;
-      if (sonuc.isFinal) { sonuclandir(alts); return; }
-      sonAra = alts;
-      clearTimeout(sessizlik);
-      sessizlik = setTimeout(() => { try { r.stop(); } catch (_) {} }, 1300);
+      if (bitti) return;
+      const once = [];
+      for (let i = 0; i < e.results.length - 1; i++) once.push(e.results[i] && e.results[i][0] ? e.results[i][0].transcript : "");
+      const sonSonuc = e.results[e.results.length - 1];
+      const adaylar = (sonSonuc ? Array.from(sonSonuc, (a) => (once.join(" ") + " " + (a.transcript || "")).trim()) : []).filter(Boolean);
+      if (!adaylar.length) return;
+      hazir();
+      clearTimeout(z.ipucu);
+      son = { metin: adaylar[0], adaylar };
+      el.duyulan.textContent = `Duyduğum: “${kisalt(son.metin)}”`;
+      const k = degerlendir(adaylar, hedef, HECELER);
+      if (k === "dogru") { dogruGoruldu = true; kur("karar", onek ? 1000 : 400, sonuclandir); }
+      else if (!durdu) kur("karar", 1500, durdur);
     };
+    r.onspeechend = () => { if (!bitti && !durdu && !son) kur("karar", 1200, durdur); };
     r.onnomatch = () => { hata = hata || "no-match"; };
-    r.onerror = (e) => { hata = e.error || "bilinmiyor"; };
-    r.onend = () => {
-      if (bitti) { if (tanima === r) tanima = null; return; }
-      if (sonAra) { sonuclandir(sonAra); return; }
-      bitti = true;
-      bitir();
-      hataGoster(hata);
-    };
+    r.onerror = (e) => { hata = e.error || "bilinmiyor"; kur("son", 600, sonuclandir); };
+    r.onend = () => { if (!bitti) sonuclandir(); };
 
     tanima = r;
-    try { r.start(); } catch (_) { bitti = true; bitir(); hataGoster("baslamadi"); }
+    try { r.start(); } catch (_) { bitti = true; tanima = null; dinlemeDurumu(false); hataGoster("baslamadi"); }
   }
   function hataGoster(hata) {
     switch (hata) {
@@ -651,7 +701,7 @@ button{font:inherit;color:inherit}
         durum("Dinleme başlamadı, tekrar dokunun.", "tekrar");
         break;
       default:
-        tekrar("", "Seni duyamadım. Biraz daha yüksek sesle oku.");
+        tekrar("", "Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.");
     }
   }
   function ebeveynModu(neden) {
