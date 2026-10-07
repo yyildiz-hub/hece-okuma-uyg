@@ -1,0 +1,1604 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F7FC">
+  <title>Hece Okuma</title>
+  <script>
+    // Yeni harfler öğrenildikçe yalnızca bu dizi genişletilir.
+    const HECELER = ["a", "an", "na", "nan", "ana", "e"];
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --zemin: #F4F7FC;
+      --yazi: #1C2640;
+      --mikrofon: #EB5530;
+      --yildiz: #FFB000;
+      --dogru: #13985A;
+      --tekrar: #6A52D8;
+      --kart: #FFFFFF;
+      --soluk: #6D7892;
+      --cizgi: #AFC7E8;
+      --orta-cizgi: #A8B7CB;
+      --taban: #6486B8;
+      --kenar: #EA6E6E;
+      --golge: 0 16px 38px rgba(36, 54, 88, .14);
+      --halka: rgba(235, 85, 48, .24);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --zemin: #101725;
+        --yazi: #F4F7FC;
+        --kart: #182235;
+        --soluk: #B9C3D6;
+        --cizgi: #526D92;
+        --orta-cizgi: #667894;
+        --taban: #89A9D2;
+        --kenar: #D77777;
+        --golge: 0 18px 42px rgba(0, 0, 0, .30);
+        --halka: rgba(235, 85, 48, .32);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+    body {
+      min-height: 100svh;
+      background: var(--zemin);
+      color: var(--yazi);
+      font-family: "Andika", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    button { font: inherit; }
+
+    .uygulama {
+      width: min(100%, 560px);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(18px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ust {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: clamp(28px, 7vw, 38px);
+      line-height: 1;
+      letter-spacing: .2px;
+    }
+
+    .cikartma-sayaci {
+      min-width: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border-radius: 18px;
+      background: var(--kart);
+      box-shadow: 0 6px 20px rgba(36, 54, 88, .08);
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .son-cikartma { font-size: 24px; line-height: 1; }
+
+    .yildiz-seridi {
+      min-height: 45px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding: 3px 0;
+    }
+
+    .yildiz {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      line-height: 1;
+      transform-origin: center;
+      filter: grayscale(1);
+      opacity: .32;
+    }
+    .yildiz.kazanildi {
+      color: var(--yildiz);
+      filter: none;
+      opacity: 1;
+      text-shadow: 0 3px 8px rgba(255, 176, 0, .25);
+    }
+    .yildiz.harcanan {
+      color: var(--tekrar);
+      filter: none;
+      opacity: .62;
+    }
+    .yildiz.zipla { animation: zipla .5s cubic-bezier(.2,.9,.2,1.35); }
+    .yildiz.son { animation: morSon .6s ease; }
+    .yildiz-seridi.salla { animation: salla .38s ease; }
+
+    .kart-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 26px;
+      box-shadow: var(--golge);
+      overflow: hidden;
+      background: var(--kart);
+    }
+    .kart-wrap.salla { animation: salla .42s ease; }
+    #heceCanvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
+
+    .durum {
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.25;
+      padding: 0 6px;
+    }
+    .durum.dogru { color: var(--dogru); }
+    .durum.tekrar { color: var(--tekrar); }
+    .durum.uyari { color: var(--mikrofon); }
+
+    .kontroller {
+      flex: 1;
+      min-height: 180px;
+      display: grid;
+      grid-template-columns: 96px 1fr 96px;
+      align-items: center;
+      justify-items: center;
+      gap: 10px;
+    }
+
+    .dinle-kutusu {
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .maliyet {
+      position: absolute;
+      top: -34px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--tekrar);
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 5px 14px rgba(106,82,216,.24);
+      white-space: nowrap;
+    }
+    .maliyet.gizli { visibility: hidden; }
+
+    .kucuk-btn {
+      width: 78px;
+      height: 78px;
+      border: 0;
+      border-radius: 24px;
+      background: var(--kart);
+      color: var(--yazi);
+      box-shadow: 0 8px 22px rgba(36,54,88,.12);
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 2px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .kucuk-btn .ikon { font-size: 27px; }
+
+    .mikrofon-wrap {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      display: grid;
+      place-items: center;
+    }
+    .halka {
+      position: absolute;
+      inset: 8px;
+      border: 3px solid var(--mikrofon);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mikrofon-wrap.dinliyor .halka { animation: halka 1.15s ease-out infinite; }
+    .mikrofon-wrap.dinliyor .halka:nth-child(2) { animation-delay: .35s; }
+
+    .mikrofon-btn {
+      position: relative;
+      z-index: 2;
+      width: 126px;
+      height: 126px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--mikrofon);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(235,85,48,.33);
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 5px;
+      padding: 14px;
+      cursor: pointer;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-weight: 800;
+      line-height: 1.05;
+      text-align: center;
+    }
+    .mikrofon-btn .mic-ikon { font-size: 34px; line-height: 1; }
+    .mikrofon-btn .mic-yazi { font-size: 15px; }
+    .mikrofon-btn.ebeveyn {
+      background: var(--dogru);
+      box-shadow: 0 12px 28px rgba(19,152,90,.30);
+    }
+
+    button:disabled { opacity: .45; cursor: default; }
+    button:focus-visible { outline: 4px solid rgba(106,82,216,.35); outline-offset: 3px; }
+
+    .duyulan-alan {
+      min-height: 78px;
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 9px;
+      text-align: center;
+      padding-bottom: 3px;
+    }
+    .duyulan {
+      min-height: 23px;
+      color: var(--soluk);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .ebeveyn-onay {
+      position: relative;
+      border: 0;
+      border-radius: 16px;
+      padding: 11px 15px;
+      color: #fff;
+      background: var(--tekrar);
+      font-size: 14px;
+      font-weight: 700;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .ebeveyn-onay[hidden] { display: none; }
+    .ebeveyn-onay::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.26);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    .ebeveyn-onay.basili::after { animation: doldur .8s linear forwards; }
+
+    .foto-sec {
+      border: 0;
+      background: transparent;
+      color: var(--soluk);
+      font-size: 12px;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .odul-foto-wrap {
+      position: relative;
+      width: min(68vw, 250px);
+      aspect-ratio: 1;
+      margin: 10px auto 14px;
+    }
+    .odul-foto {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 7px solid var(--yildiz);
+      box-shadow: 0 14px 32px rgba(36,54,88,.22);
+      animation: odulFotoGiris .75s cubic-bezier(.2,.9,.2,1.2);
+    }
+    .odul-foto[hidden] { display: none; }
+    .odul-foto-yerine {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 3px dashed var(--cizgi);
+      background: var(--zemin);
+      font-size: 62px;
+    }
+    .odul-foto-yerine[hidden] { display: none; }
+    .odul-cikartma-rozet {
+      position: absolute;
+      right: -6px;
+      bottom: 6px;
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--kart);
+      box-shadow: 0 8px 20px rgba(36,54,88,.18);
+      font-size: 48px;
+      animation: zipla .7s cubic-bezier(.2,.9,.2,1.35);
+    }
+    .odul-alt-mesaj {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .odul-foto-btn {
+      margin-top: 10px;
+      border: 0;
+      background: transparent;
+      color: var(--tekrar);
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    @keyframes odulFotoGiris {
+      0% { transform: scale(.65) rotate(-3deg); opacity: 0; }
+      70% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    .odul-ekrani {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(18px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(18px, env(safe-area-inset-left));
+      background: color-mix(in srgb, var(--zemin) 94%, transparent);
+      backdrop-filter: blur(12px);
+      display: grid;
+      place-items: center;
+    }
+    .odul-ekrani[hidden] { display: none; }
+    .odul-kart {
+      width: min(100%, 500px);
+      max-height: 88svh;
+      overflow: auto;
+      padding: 24px 18px;
+      border-radius: 30px;
+      background: var(--kart);
+      box-shadow: var(--golge);
+      text-align: center;
+    }
+    .odul-baslik {
+      margin: 0 0 4px;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: 36px;
+    }
+    .buyuk-cikartma {
+      font-size: 92px;
+      line-height: 1.1;
+      margin: 4px 0 10px;
+      animation: zipla .7s cubic-bezier(.2,.9,.2,1.35);
+    }
+    .raf-baslik { margin: 10px 0 8px; font-weight: 700; }
+    .cikartma-rafi {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      min-height: 58px;
+      padding: 10px;
+      border-radius: 20px;
+      background: var(--zemin);
+      font-size: 36px;
+    }
+    .yeni-tur {
+      margin-top: 18px;
+      border: 0;
+      border-radius: 18px;
+      padding: 13px 24px;
+      background: var(--mikrofon);
+      color: white;
+      font-family: "Baloo 2", system-ui, sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .konfeti {
+      position: fixed;
+      z-index: 70;
+      width: 10px;
+      height: 16px;
+      border-radius: 3px;
+      top: -24px;
+      left: 50%;
+      pointer-events: none;
+      animation: konfetiDus var(--sure, 1.4s) cubic-bezier(.1,.65,.25,1) forwards;
+    }
+
+    @keyframes zipla {
+      0% { transform: scale(.55) rotate(-12deg); }
+      55% { transform: scale(1.35) rotate(8deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
+    @keyframes morSon {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: .35; }
+      100% { transform: scale(1); opacity: .62; }
+    }
+    @keyframes salla {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(3px); }
+    }
+    @keyframes halka {
+      0% { transform: scale(.78); opacity: .55; box-shadow: 0 0 0 0 var(--halka); }
+      100% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 18px transparent; }
+    }
+    @keyframes doldur { to { transform: scaleX(1); } }
+    @keyframes konfetiDus {
+      0% { transform: translate3d(0,0,0) rotate(0deg); opacity: 1; }
+      100% { transform: translate3d(var(--x), 108svh, 0) rotate(var(--r)); opacity: .9; }
+    }
+
+    @media (max-height: 720px) {
+      .uygulama { gap: 8px; }
+      #heceCanvas { height: 220px; }
+      .durum { min-height: 38px; font-size: 16px; }
+      .kontroller { min-height: 150px; }
+      .mikrofon-wrap { width: 132px; height: 132px; }
+      .mikrofon-btn { width: 112px; height: 112px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+      .konfeti { display: none; }
+    }
+  </style>
+</head>
+<body>
+<main class="uygulama" aria-live="polite">
+  <header class="ust">
+    <h1>Hece Okuma</h1>
+    <div class="cikartma-sayaci" aria-label="Çıkartmalar">
+      <span id="sonCikartma" class="son-cikartma">☆</span>
+      <span id="cikartmaToplam">0</span>
+    </div>
+  </header>
+
+  <section id="yildizSeridi" class="yildiz-seridi" aria-label="Tur yıldızları"></section>
+
+  <section id="kartWrap" class="kart-wrap" aria-label="Okunacak hece">
+    <canvas id="heceCanvas"></canvas>
+  </section>
+
+  <div id="durum" class="durum">Mikrofona dokun. Sonra oku.</div>
+
+  <section class="kontroller" aria-label="Okuma kontrolleri">
+    <div class="dinle-kutusu">
+      <div id="maliyet" class="maliyet">−1⭐</div>
+      <button id="dinleBtn" class="kucuk-btn" type="button" aria-label="Heceyi dinle">
+        <span class="ikon" aria-hidden="true">🔊</span>
+        <span>Dinle</span>
+      </button>
+    </div>
+
+    <div id="mikrofonWrap" class="mikrofon-wrap">
+      <span class="halka"></span>
+      <span class="halka"></span>
+      <button id="mikrofonBtn" class="mikrofon-btn" type="button">
+        <span id="micIkon" class="mic-ikon" aria-hidden="true">🎤</span>
+        <span id="micYazi" class="mic-yazi">Dokun ve oku</span>
+      </button>
+    </div>
+
+    <div aria-hidden="true"></div>
+  </section>
+
+  <section class="duyulan-alan">
+    <div id="duyulan" class="duyulan">Duyduğum: “…”</div>
+    <button id="ebeveynOnay" class="ebeveyn-onay" type="button" hidden>Ebeveyn: basılı tut, doğru say</button>
+    <button id="fotoSecBtn" class="foto-sec" type="button">Ödül fotoğrafını seç</button>
+    <input id="fotoInput" type="file" accept="image/*" hidden>
+  </section>
+</main>
+
+<section id="odulEkrani" class="odul-ekrani" hidden aria-modal="true" role="dialog" aria-labelledby="odulBaslik">
+  <div class="odul-kart">
+    <h2 id="odulBaslik" class="odul-baslik">Tebrikler! 🎉</h2>
+    <div class="odul-foto-wrap">
+      <img id="odulFoto" class="odul-foto" alt="Ödül fotoğrafı" hidden>
+      <div id="odulFotoYerine" class="odul-foto-yerine" aria-hidden="true">🌟</div>
+      <div id="buyukCikartma" class="odul-cikartma-rozet">🦁</div>
+    </div>
+    <div class="odul-alt-mesaj">Harika okudun!</div>
+    <div id="odulMesaj">Yeni bir çıkartma kazandın!</div>
+    <div class="raf-baslik">Çıkartma rafın</div>
+    <div id="cikartmaRafi" class="cikartma-rafi"></div>
+    <button id="yeniTurBtn" class="yeni-tur" type="button">Yeni tur</button>
+    <button id="odulFotoDegistir" class="odul-foto-btn" type="button">Fotoğrafı değiştir</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Saf eşleştirme fonksiyonları ----------
+  const TURKCE_UNLULER = new Set(["a","e","ı","i","o","ö","u","ü"]);
+  const E_GRUBU = new Set(["e","i","ö","ü"]);
+  const A_GRUBU = new Set(["a","ı","o","u"]);
+  const YAKIN_UNSUZ = new Map([
+    ["mn", .2], ["nm", .2],
+    ["ln", .35], ["nl", .35], ["rn", .35], ["nr", .35], ["lr", .35], ["rl", .35],
+    ["bp", .4], ["pb", .4], ["dt", .4], ["td", .4], ["gk", .4], ["kg", .4],
+    ["cç", .4], ["çc", .4], ["fv", .4], ["vf", .4], ["sz", .4], ["zs", .4],
+    ["jş", .4], ["şj", .4]
+  ]);
+
+  function getKnownLetters(heceler) {
+    return new Set(heceler.join("").split(""));
+  }
+
+  function turkceKucult(text) {
+    return String(text ?? "").toLocaleLowerCase("tr-TR");
+  }
+
+  function isaretleriAt(text) {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function temizleVeBol(text) {
+    const kucuk = isaretleriAt(turkceKucult(text));
+    let harfli;
+    try {
+      harfli = kucuk.replace(/[^\p{L}]+/gu, " ");
+    } catch (_) {
+      harfli = kucuk.replace(/[^a-zçğıöşüı]+/g, " ");
+    }
+    return harfli.trim().split(/\s+/).filter(Boolean);
+  }
+
+  function sadelestirKelime(kelime, knownLetters) {
+    let s = isaretleriAt(turkceKucult(kelime));
+    if (!knownLetters.has("ğ")) s = s.replace(/ğ/g, "");
+    let out = "";
+    for (const ch of s) {
+      if (out.at(-1) !== ch) out += ch;
+    }
+    return out;
+  }
+
+  function sadelestirMetin(text, knownLetters) {
+    return temizleVeBol(text).map(k => sadelestirKelime(k, knownLetters)).filter(Boolean);
+  }
+
+  function ekstraHarfMaliyeti(ch, knownLetters) {
+    if (knownLetters.has(ch)) return 1;
+    if (ch === "h") return .2;
+    if (ch === "y") return .3;
+    if (TURKCE_UNLULER.has(ch)) return .7;
+    return .6;
+  }
+
+  function degisimMaliyeti(duyulan, hedef, knownLetters) {
+    if (duyulan === hedef) return 0;
+    const dUnlu = TURKCE_UNLULER.has(duyulan);
+    const hUnlu = TURKCE_UNLULER.has(hedef);
+    if (dUnlu !== hUnlu) return 1.2;
+
+    if (knownLetters.has(duyulan)) return 1;
+
+    if (dUnlu && hUnlu) {
+      const ayniGrup = (E_GRUBU.has(duyulan) && E_GRUBU.has(hedef)) ||
+                       (A_GRUBU.has(duyulan) && A_GRUBU.has(hedef));
+      return ayniGrup ? .4 : .9;
+    }
+
+    if (!dUnlu && !hUnlu) return YAKIN_UNSUZ.get(duyulan + hedef) ?? .7;
+    return 1.2;
+  }
+
+  // Yön: duyulan metinden hedef heceye.
+  function agirlikliUzaklik(duyulan, hedef, knownLetters) {
+    const a = [...duyulan];
+    const b = [...hedef];
+    const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+    for (let i = 1; i <= a.length; i++) dp[i][0] = dp[i - 1][0] + ekstraHarfMaliyeti(a[i - 1], knownLetters);
+    for (let j = 1; j <= b.length; j++) dp[0][j] = dp[0][j - 1] + 1;
+
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + ekstraHarfMaliyeti(a[i - 1], knownLetters),
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + degisimMaliyeti(a[i - 1], b[j - 1], knownLetters)
+        );
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
+  function esik(hece) {
+    if (hece.length === 1) return .6;
+    if (hece.length === 2) return .7;
+    return .9 + Math.max(0, hece.length - 3) * .2;
+  }
+
+  function siniflandir(sadeKelime, heceler, learnedMap = {}) {
+    const knownLetters = getKnownLetters(heceler);
+    if (!sadeKelime) return { hece: null, durum: "belirsiz", neden: "bos" };
+
+    // Birebir hece her zaman öğrenilmiş eşleşmeden önce gelir.
+    if (heceler.includes(sadeKelime)) {
+      return { hece: sadeKelime, durum: "kesin", uzaklik: 0, ikinci: Infinity };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(learnedMap, sadeKelime) && heceler.includes(learnedMap[sadeKelime])) {
+      return { hece: learnedMap[sadeKelime], durum: "ogrenilmis", uzaklik: 0, ikinci: Infinity };
+    }
+
+    const sirali = heceler
+      .map(h => ({ hece: h, uzaklik: agirlikliUzaklik(sadeKelime, h, knownLetters) }))
+      .sort((x, y) => x.uzaklik - y.uzaklik || x.hece.length - y.hece.length);
+
+    const birinci = sirali[0];
+    const ikinci = sirali[1] ?? { uzaklik: Infinity };
+    const marj = ikinci.uzaklik - birinci.uzaklik;
+
+    if (birinci.uzaklik <= esik(birinci.hece) && marj >= .25 - 1e-9) {
+      return { hece: birinci.hece, durum: "yakin", uzaklik: birinci.uzaklik, ikinci: ikinci.uzaklik };
+    }
+    return { hece: null, durum: "belirsiz", uzaklik: birinci.uzaklik, ikinci: ikinci.uzaklik };
+  }
+
+  function metniKararVer(text, hedef, heceler, learnedMap = {}) {
+    const knownLetters = getKnownLetters(heceler);
+    const kelimeler = sadelestirMetin(text, knownLetters);
+    const birlesik = kelimeler.join("");
+
+    if (!birlesik) return { karar: "belirsiz", kelimeler, birlesik, siniflar: [] };
+
+    // 1) Kelimeler birleşince hedef çıkıyorsa doğru.
+    if (birlesik === hedef) return { karar: "dogru", kelimeler, birlesik, siniflar: [] };
+
+    // 2) Birden çok kelime birleşince başka bir hece çıkıyorsa yanlış.
+    if (kelimeler.length > 1 && heceler.includes(birlesik) && birlesik !== hedef) {
+      return { karar: "yanlis", kelimeler, birlesik, siniflar: [] };
+    }
+
+    // 3) Kelimeleri tek tek sınıflandır, belirsizleri at.
+    const detaylar = kelimeler.map(k => ({ kelime: k, ...siniflandir(k, heceler, learnedMap) }));
+    const siniflar = detaylar.filter(d => d.hece).map(d => d.hece);
+    if (!siniflar.length) return { karar: "belirsiz", kelimeler, birlesik, siniflar, detaylar };
+
+    const son = siniflar.at(-1);
+    if (son === hedef) {
+      const farkliSayisi = siniflar.slice(0, -1).filter(h => h !== hedef).length;
+      if (farkliSayisi <= 1) return { karar: "dogru", kelimeler, birlesik, siniflar, detaylar };
+    }
+    return { karar: "yanlis", kelimeler, birlesik, siniflar, detaylar };
+  }
+
+  function adaylariKararVer(adaylar, hedef, heceler, learnedMap = {}) {
+    if (!adaylar.length) return { karar: "belirsiz", aday: "", detay: null };
+    const ilk = metniKararVer(adaylar[0], hedef, heceler, learnedMap);
+    if (ilk.karar === "dogru" || ilk.karar === "yanlis") {
+      return { karar: ilk.karar, aday: adaylar[0], detay: ilk };
+    }
+    for (let i = 1; i < adaylar.length; i++) {
+      const d = metniKararVer(adaylar[i], hedef, heceler, learnedMap);
+      if (d.karar === "dogru") return { karar: "dogru", aday: adaylar[i], detay: d };
+    }
+    return { karar: "belirsiz", aday: adaylar[0], detay: ilk };
+  }
+
+  function matcherSelfTests() {
+    const cases = [
+      ["a", ["A","Ah","Ha","Aaa","Ay","O"], "dogru"],
+      ["a", ["E","An","Ana","Na","a e"], "yanlis"],
+      ["a", ["Ab"], "belirsiz"],
+      ["e", ["E","Eh","He","Ey","İ"], "dogru"],
+      ["e", ["A","O"], "yanlis"],
+      ["e", ["Ne"], "belirsiz"],
+      ["an", ["An","Han","Am","On","Al"], "dogru"],
+      ["an", ["Na","Ana","A","Nan"], "yanlis"],
+      ["na", ["Na","Nah","Ma","La","No","na na"], "dogru"],
+      ["na", ["An","Nan","A","a na"], "yanlis"],
+      ["na", ["Ne","nana"], "belirsiz"],
+      ["nan", ["Nan","Nam","Lan","Man","Naan"], "dogru"],
+      ["nan", ["Na","An","Ana","Han"], "yanlis"],
+      ["nan", ["Nane"], "belirsiz"],
+      ["ana", ["Ana","Anna","Hana","Ama","Bana","Ayna","a na","an a"], "dogru"],
+      ["ana", ["An","Nan","A"], "yanlis"],
+      ["ana", ["Anne"], "belirsiz"],
+      ["a", ["a tamam","e a"], "dogru"],
+      ["na", ["e a an na"], "yanlis"]
+    ];
+    const failures = [];
+    for (const [hedef, inputs, beklenen] of cases) {
+      for (const input of inputs) {
+        const got = metniKararVer(input, hedef, HECELER, {}).karar;
+        if (got !== beklenen) failures.push({ hedef, input, beklenen, got });
+      }
+    }
+    const alt1 = adaylariKararVer(["Ne","Na"], "na", HECELER, {}).karar;
+    const alt2 = adaylariKararVer(["An","Na"], "na", HECELER, {}).karar;
+    if (alt1 !== "dogru") failures.push({ hedef: "na", input: '["Ne","Na"]', beklenen: "dogru", got: alt1 });
+    if (alt2 !== "yanlis") failures.push({ hedef: "na", input: '["An","Na"]', beklenen: "yanlis", got: alt2 });
+    return failures;
+  }
+
+  // ---------- Uygulama ----------
+  const $ = (s) => document.querySelector(s);
+  const canvas = $("#heceCanvas");
+  const ctx = canvas.getContext("2d");
+  const kartWrap = $("#kartWrap");
+  const durumEl = $("#durum");
+  const duyulanEl = $("#duyulan");
+  const yildizSeridi = $("#yildizSeridi");
+  const mikrofonWrap = $("#mikrofonWrap");
+  const mikrofonBtn = $("#mikrofonBtn");
+  const micIkon = $("#micIkon");
+  const micYazi = $("#micYazi");
+  const dinleBtn = $("#dinleBtn");
+  const maliyetEl = $("#maliyet");
+  const ebeveynOnay = $("#ebeveynOnay");
+  const sonCikartmaEl = $("#sonCikartma");
+  const cikartmaToplamEl = $("#cikartmaToplam");
+  const odulEkrani = $("#odulEkrani");
+  const buyukCikartma = $("#buyukCikartma");
+  const cikartmaRafi = $("#cikartmaRafi");
+  const odulMesaj = $("#odulMesaj");
+  const yeniTurBtn = $("#yeniTurBtn");
+  const fotoSecBtn = $("#fotoSecBtn");
+  const fotoInput = $("#fotoInput");
+  const odulFoto = $("#odulFoto");
+  const odulFotoYerine = $("#odulFotoYerine");
+  const odulFotoDegistir = $("#odulFotoDegistir");
+
+  const CIKARTMALAR = ["🦁","🐼","🦊","🐸","🐯","🐨","🐰","🐻","🦉","🐢","🐙","🦋","🐞","🐬","🦄","🐧","🐳","🦒","🐝","🦕"];
+  const OVGULER = ["Aferin!", "Harika!", "Süpersin!", "Bravo!", "Çok güzel!"];
+  const LS_STICKERS = "hece-okuma-cikartmalar-v1";
+  const LS_LEARNED = "hece-okuma-ogrenilen-v1";
+  const LS_REWARD_PHOTO = "hece-okuma-odul-fotografi-v1";
+
+  let tur = [];
+  let sira = 0;
+  let oncekiTurSonu = null;
+  let starStates = [];
+  let dinlenenler = new Set();
+  const storedStickers = safeRead(LS_STICKERS, []);
+  const storedLearned = safeRead(LS_LEARNED, {});
+  const storedRewardPhoto = safeRead(LS_REWARD_PHOTO, "");
+  let stickers = Array.isArray(storedStickers)
+    ? [...new Set(storedStickers.filter(x => CIKARTMALAR.includes(x)))]
+    : [];
+  let learnedMap = storedLearned && typeof storedLearned === "object" && !Array.isArray(storedLearned)
+    ? storedLearned
+    : {};
+  let sonKazanilan = stickers.at(-1) || "☆";
+  let rewardPhoto = typeof storedRewardPhoto === "string" ? storedRewardPhoto : "";
+  let parentMode = false;
+  let recognition = null;
+  let listening = false;
+  let speaking = false;
+  let decided = false;
+  let lastCandidates = [];
+  let lastHeard = "";
+  let lastVerdict = "belirsiz";
+  let sessionSeenCorrect = false;
+  let gotAnyResult = false;
+  let startAt = 0;
+  let audioCtx = null;
+  let currentCorrect = false;
+
+  const timers = {
+    ready: null,
+    fallbackReady: null,
+    accept: null,
+    inactivity: null,
+    stopEval: null,
+    four: null,
+    nine: null,
+    next: null
+  };
+
+  function safeRead(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_) { return fallback; }
+  }
+
+  function safeWrite(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function clearTimer(name) {
+    if (timers[name]) clearTimeout(timers[name]);
+    timers[name] = null;
+  }
+
+  function clearSessionTimers() {
+    ["ready","fallbackReady","accept","inactivity","stopEval","four","nine"].forEach(clearTimer);
+  }
+
+  function setDurum(text, type = "") {
+    durumEl.textContent = text;
+    durumEl.className = "durum" + (type ? " " + type : "");
+  }
+
+  function setDuyulan(text = "") {
+    lastHeard = text;
+    duyulanEl.textContent = `Duyduğum: “${text || "…"}”`;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function yeniTur() {
+    stopAllSpeech();
+    odulEkrani.hidden = true;
+    let aday = shuffle(HECELER);
+    if (HECELER.length > 1 && oncekiTurSonu && aday[0] === oncekiTurSonu) {
+      const j = aday.findIndex((x, i) => i > 0 && x !== oncekiTurSonu);
+      if (j > 0) [aday[0], aday[j]] = [aday[j], aday[0]];
+    }
+    tur = aday;
+    sira = 0;
+    starStates = Array(tur.length).fill("bos");
+    dinlenenler = new Set();
+    currentCorrect = false;
+    renderStars();
+    renderStickerCounter();
+    yeniHeceUI();
+  }
+
+  function hedef() { return tur[sira] || ""; }
+
+  function yeniHeceUI() {
+    currentCorrect = false;
+    setDuyulan("");
+    lastVerdict = "belirsiz";
+    ebeveynOnay.hidden = true;
+    kartWrap.classList.remove("salla");
+    mikrofonWrap.classList.remove("dinliyor");
+    updateListenBadge();
+    drawCard(false);
+    if (parentMode) {
+      setDurum("Sesli oku. Doğruysa ebeveyn bassın.");
+    } else {
+      setDurum("Mikrofona dokun. Sonra oku.");
+    }
+    updateLocks();
+  }
+
+  function renderStars() {
+    yildizSeridi.innerHTML = "";
+    starStates.forEach((state, i) => {
+      const span = document.createElement("span");
+      span.className = "yildiz" + (state === "earned" ? " kazanildi" : state === "spent" ? " harcanan" : "");
+      span.textContent = state === "spent" ? "★" : (state === "earned" ? "★" : "☆");
+      span.setAttribute("aria-label", state === "earned" ? "Kazanılmış yıldız" : state === "spent" ? "Dinleme için kullanılmış yıldız" : "Boş yıldız");
+      span.dataset.index = String(i);
+      yildizSeridi.appendChild(span);
+    });
+  }
+
+  function earnStar(index) {
+    if (starStates[index] !== "earned") starStates[index] = "earned";
+    renderStars();
+    const el = yildizSeridi.querySelector(`[data-index="${index}"]`);
+    if (el) el.classList.add("zipla");
+  }
+
+  function spendStar() {
+    let idx = -1;
+    for (let i = starStates.length - 1; i >= 0; i--) {
+      if (starStates[i] === "earned") { idx = i; break; }
+    }
+    if (idx < 0) return false;
+    starStates[idx] = "spent";
+    renderStars();
+    const el = yildizSeridi.querySelector(`[data-index="${idx}"]`);
+    if (el) el.classList.add("son");
+    return true;
+  }
+
+  function earnedCount() { return starStates.filter(s => s === "earned").length; }
+
+  function updateListenBadge() {
+    maliyetEl.classList.toggle("gizli", dinlenenler.has(sira));
+  }
+
+  function renderStickerCounter() {
+    sonCikartmaEl.textContent = sonKazanilan;
+    cikartmaToplamEl.textContent = String(stickers.length);
+  }
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function drawCard(correct) {
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(280, rect.width || 520);
+    const h = Math.max(210, rect.height || 260);
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = css("--kart");
+    ctx.fillRect(0, 0, w, h);
+
+    const top = h * .23;
+    const mid = h * .44;
+    const base = h * .69;
+    const bottom = h * .86;
+
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css("--cizgi");
+    line(0, top, w, top);
+
+    ctx.save();
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = css("--orta-cizgi");
+    line(0, mid, w, mid);
+    ctx.restore();
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = css("--taban");
+    line(0, base, w, base);
+
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css("--cizgi");
+    line(0, bottom, w, bottom);
+
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = css("--kenar");
+    line(Math.max(28, w * .08), 0, Math.max(28, w * .08), h);
+
+    const word = hedef();
+    let size = Math.min(126, h * .51);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `700 ${size}px Andika, sans-serif`;
+    const maxWidth = w * .72;
+    while (ctx.measureText(word).width > maxWidth && size > 54) {
+      size -= 4;
+      ctx.font = `700 ${size}px Andika, sans-serif`;
+    }
+    ctx.fillStyle = correct ? css("--dogru") : css("--yazi");
+    ctx.fillText(word, w / 2 + w * .015, base - 3);
+
+    if (correct) {
+      ctx.save();
+      ctx.fillStyle = css("--dogru");
+      ctx.font = `800 ${Math.min(46, w * .1)}px "Baloo 2", sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+      ctx.fillText("✓", w - 18, 12);
+      ctx.restore();
+    }
+  }
+
+  function line(x1, y1, x2, y2) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  function unlockAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx?.state === "suspended") audioCtx.resume().catch(() => {});
+  }
+  document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+
+  function note(freq, when, duration, gain = .12, type = "sine") {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, when);
+    g.gain.setValueAtTime(.0001, when);
+    g.gain.exponentialRampToValueAtTime(gain, when + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, when + duration);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start(when);
+    osc.stop(when + duration + .03);
+  }
+
+  function playCorrect() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .01;
+    note(523.25, t, .14, .11, "triangle");
+    note(659.25, t + .12, .16, .11, "triangle");
+    note(783.99, t + .25, .22, .12, "triangle");
+  }
+
+  function playWrong() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .01;
+    note(392, t, .18, .08, "sine");
+    note(293.66, t + .16, .22, .08, "sine");
+  }
+
+  function playFanfare() {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + .02;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, t + i * .11, .28, .10, "triangle"));
+  }
+
+  function confetti(count = 34) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const palette = ["#FFB000", "#EB5530", "#13985A", "#6A52D8", "#42A5F5", "#EC6AA6"];
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("i");
+      p.className = "konfeti";
+      p.style.background = palette[i % palette.length];
+      p.style.left = `${10 + Math.random() * 80}%`;
+      p.style.setProperty("--x", `${-140 + Math.random() * 280}px`);
+      p.style.setProperty("--r", `${-360 + Math.random() * 720}deg`);
+      p.style.setProperty("--sure", `${1.05 + Math.random() * .9}s`);
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2200);
+    }
+  }
+
+  function updateLocks() {
+    mikrofonBtn.disabled = speaking || currentCorrect;
+    dinleBtn.disabled = listening || speaking || currentCorrect;
+  }
+
+  function stopAllSpeech() {
+    try { window.speechSynthesis?.cancel(); } catch (_) {}
+    if (listening) {
+      try { recognition?.abort(); } catch (_) {}
+    }
+    speaking = false;
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    clearSessionTimers();
+    updateLocks();
+  }
+
+  function speechCtor() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+
+  function setupRecognition() {
+    const SR = speechCtor();
+    if (!SR) {
+      enterParentMode("Bu cihazda ses tanıma yok. Çocuğunuz okusun, sonra “Doğru okudu”ya basın.");
+      return;
+    }
+
+    recognition = new SR();
+    recognition.lang = "tr-TR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 5;
+
+    recognition.onstart = () => {
+      startAt = performance.now();
+      clearTimer("fallbackReady");
+      timers.fallbackReady = setTimeout(showReady, 800);
+      clearTimer("four");
+      timers.four = setTimeout(() => {
+        if (listening && !gotAnyResult && !decided) setDurum("Sesleri uzatarak, yüksek sesle oku!", "tekrar");
+      }, 4000);
+      clearTimer("nine");
+      timers.nine = setTimeout(() => {
+        if (listening && !gotAnyResult && !decided) {
+          setDurum("Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.", "tekrar");
+          try { recognition.stop(); } catch (_) {}
+        }
+      }, 9000);
+    };
+
+    recognition.onaudiostart = () => {
+      clearTimer("fallbackReady");
+      clearTimer("ready");
+      timers.ready = setTimeout(showReady, 300);
+    };
+
+    recognition.onresult = (event) => {
+      if (!listening || decided) return;
+      gotAnyResult = true;
+      clearTimer("four");
+      clearTimer("nine");
+      clearTimer("accept");
+      clearTimer("inactivity");
+      clearTimer("stopEval");
+
+      lastCandidates = buildCandidates(event);
+      setDuyulan(lastCandidates[0] || "");
+      const verdict = adaylariKararVer(lastCandidates, hedef(), HECELER, learnedMap);
+      lastVerdict = verdict.karar;
+      if (verdict.karar === "dogru") sessionSeenCorrect = true;
+
+      if (verdict.karar === "dogru") {
+        const wait = hedefBaskaHeceninBasiMi(hedef()) ? 1000 : 400;
+        timers.accept = setTimeout(() => finishDecision("dogru", verdict), wait);
+      } else {
+        timers.inactivity = setTimeout(() => {
+          if (!listening || decided) return;
+          try { recognition.stop(); } catch (_) { evaluateAtEnd(); }
+          timers.stopEval = setTimeout(evaluateAtEnd, 900);
+        }, 1500);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      const err = event.error || "";
+      if (["not-allowed", "service-not-allowed", "language-not-supported"].includes(err)) {
+        const reason = err === "language-not-supported"
+          ? "Türkçe ses tanıma desteklenmiyor. Ebeveyn modu açıldı."
+          : "Mikrofon izni verilmedi. Ebeveyn modu açıldı.";
+        enterParentMode(reason);
+        return;
+      }
+      if (err === "audio-capture") {
+        decided = true;
+        setDurum("Mikrofon bulunamadı", "uyari");
+        showParentOverride();
+      } else if (err === "network") {
+        decided = true;
+        setDurum("Ses tanıma için internet gerekiyor", "uyari");
+        showParentOverride();
+      } else if (err !== "aborted" && err !== "no-speech") {
+        decided = true;
+        setDurum("Tam anlayamadım, bir daha oku.", "tekrar");
+        showParentOverride();
+      }
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      mikrofonWrap.classList.remove("dinliyor");
+      updateLocks();
+      if (!decided && !parentMode) evaluateAtEnd();
+    };
+  }
+
+  function buildCandidates(event) {
+    const results = event.results;
+    if (!results || !results.length) return [];
+    const lastIndex = results.length - 1;
+    let prefix = "";
+    for (let i = 0; i < lastIndex; i++) {
+      const t = results[i]?.[0]?.transcript?.trim();
+      if (t) prefix += (prefix ? " " : "") + t;
+    }
+    const last = results[lastIndex];
+    const out = [];
+    const n = Math.min(last.length || 0, recognition?.maxAlternatives || 5);
+    for (let i = 0; i < n; i++) {
+      const t = last[i]?.transcript?.trim();
+      const combined = [prefix, t].filter(Boolean).join(" ").trim();
+      if (combined && !out.includes(combined)) out.push(combined);
+    }
+    if (!out.length && prefix) out.push(prefix);
+    return out;
+  }
+
+  function hedefBaskaHeceninBasiMi(h) {
+    return HECELER.some(x => x !== h && x.startsWith(h));
+  }
+
+  function showReady() {
+    if (!listening || decided) return;
+    setDurum("Şimdi oku!");
+    mikrofonWrap.classList.add("dinliyor");
+  }
+
+  function startListening() {
+    if (parentMode) {
+      correctAnswer({ viaParentMode: true });
+      return;
+    }
+    if (!recognition || listening || speaking || currentCorrect) return;
+    unlockAudio();
+    clearSessionTimers();
+    decided = false;
+    gotAnyResult = false;
+    sessionSeenCorrect = false;
+    lastCandidates = [];
+    lastVerdict = "belirsiz";
+    setDuyulan("");
+    ebeveynOnay.hidden = true;
+    setDurum("Bekle…");
+    listening = true;
+    updateLocks();
+    try {
+      recognition.start();
+    } catch (_) {
+      listening = false;
+      updateLocks();
+      setDurum("Bir daha dokun ve oku.", "tekrar");
+    }
+  }
+
+  function evaluateAtEnd() {
+    if (decided || parentMode) return;
+    clearTimer("stopEval");
+    clearTimer("accept");
+    clearTimer("inactivity");
+    if (!lastCandidates.length) {
+      if (gotAnyResult) {
+        finishDecision("belirsiz", null);
+      } else {
+        setDurum("Seni duyamadım. Sesleri uzatarak, yüksek sesle oku.", "tekrar");
+        showParentOverride();
+      }
+      return;
+    }
+    const verdict = adaylariKararVer(lastCandidates, hedef(), HECELER, learnedMap);
+    if (verdict.karar === "belirsiz" && sessionSeenCorrect) {
+      finishDecision("dogru", verdict);
+    } else {
+      finishDecision(verdict.karar, verdict);
+    }
+  }
+
+  function finishDecision(kind, verdict) {
+    if (decided) return;
+    decided = true;
+    clearSessionTimers();
+    if (listening) {
+      try { recognition.stop(); } catch (_) {}
+    }
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    updateLocks();
+
+    if (kind === "dogru") correctAnswer({ verdict });
+    else if (kind === "yanlis") wrongAnswer(verdict);
+    else uncertainAnswer(verdict);
+  }
+
+  function correctAnswer() {
+    if (currentCorrect) return;
+    currentCorrect = true;
+    lastVerdict = "dogru";
+    ebeveynOnay.hidden = true;
+    drawCard(true);
+    earnStar(sira);
+    playCorrect();
+    confetti(24);
+    setDurum(OVGULER[Math.floor(Math.random() * OVGULER.length)], "dogru");
+    updateLocks();
+    clearTimer("next");
+    timers.next = setTimeout(() => {
+      sira++;
+      if (sira >= tur.length) endRound();
+      else yeniHeceUI();
+    }, 1500);
+  }
+
+  function wrongAnswer(verdict) {
+    lastVerdict = "yanlis";
+    playWrong();
+    kartWrap.classList.remove("salla");
+    void kartWrap.offsetWidth;
+    kartWrap.classList.add("salla");
+    setDurum(buildHint(verdict?.aday || lastHeard), "tekrar");
+    showParentOverride();
+    updateLocks();
+  }
+
+  function uncertainAnswer() {
+    lastVerdict = "belirsiz";
+    setDurum("Tam anlayamadım, bir daha oku.", "tekrar");
+    showParentOverride();
+    updateLocks();
+  }
+
+  function buildHint(heardText) {
+    const known = getKnownLetters(HECELER);
+    const joined = sadelestirMetin(heardText, known).join("");
+    const h = hedef();
+    if (h.length > 1 && joined === h.slice(0, -1)) return `Sondaki “${h.at(-1)}” sesini de söyle!`;
+    if (h.length > 1 && joined === h.slice(1)) return `Baştaki “${h[0]}” sesini de söyle!`;
+    if ([...h].reverse().join("") === joined && joined !== h) return "Soldan sağa doğru oku!";
+    return "Bir daha deneyelim!";
+  }
+
+  function showParentOverride() {
+    if (!parentMode) ebeveynOnay.hidden = false;
+  }
+
+  function enterParentMode(message) {
+    parentMode = true;
+    clearSessionTimers();
+    if (listening) {
+      try { recognition?.abort(); } catch (_) {}
+    }
+    listening = false;
+    mikrofonWrap.classList.remove("dinliyor");
+    mikrofonBtn.classList.add("ebeveyn");
+    micIkon.textContent = "✓";
+    micYazi.textContent = "Doğru okudu";
+    ebeveynOnay.hidden = true;
+    setDurum(message, "uyari");
+    updateLocks();
+  }
+
+  function simplifyForLearning(text) {
+    const known = getKnownLetters(HECELER);
+    const words = sadelestirMetin(text, known);
+    return words.length === 1 ? words[0] : "";
+  }
+
+  function approveByParentHold() {
+    const key = simplifyForLearning(lastHeard);
+    let learnedMessage = "";
+    if (lastVerdict === "belirsiz" && key) {
+      const exactOther = HECELER.includes(key) && key !== hedef();
+      const cls = siniflandir(key, HECELER, learnedMap);
+      const resemblesOther = cls.hece && cls.hece !== hedef();
+      if (!exactOther && !resemblesOther) {
+        learnedMap[key] = hedef();
+        safeWrite(LS_LEARNED, learnedMap);
+        learnedMessage = `Öğrendim: “${lastHeard}” artık “${hedef()}” sayılacak.`;
+      }
+    }
+    correctAnswer({ viaHold: true });
+    if (learnedMessage) setDurum(learnedMessage, "dogru");
+  }
+
+  let holdTimer = null;
+  function holdStart(e) {
+    e.preventDefault();
+    if (ebeveynOnay.hidden) return;
+    ebeveynOnay.classList.add("basili");
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      ebeveynOnay.classList.remove("basili");
+      approveByParentHold();
+    }, 800);
+  }
+  function holdCancel(e) {
+    if (e) e.preventDefault();
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    ebeveynOnay.classList.remove("basili");
+  }
+  ebeveynOnay.addEventListener("pointerdown", holdStart);
+  ["pointerup","pointercancel","pointerleave"].forEach(ev => ebeveynOnay.addEventListener(ev, holdCancel));
+  ebeveynOnay.addEventListener("contextmenu", e => e.preventDefault());
+
+  function chooseTurkishVoice() {
+    const voices = window.speechSynthesis?.getVoices?.() || [];
+    return voices.find(v => (v.lang || "").toLocaleLowerCase("tr-TR").startsWith("tr")) || null;
+  }
+
+  function listenSyllable() {
+    if (!window.speechSynthesis || speaking || listening || currentCorrect) return;
+    unlockAudio();
+
+    const firstThisSyllable = !dinlenenler.has(sira);
+    if (firstThisSyllable && earnedCount() === 0) {
+      yildizSeridi.classList.remove("salla");
+      void yildizSeridi.offsetWidth;
+      yildizSeridi.classList.add("salla");
+      setDurum("Dinlemek için önce bir yıldız kazan.", "tekrar");
+      return;
+    }
+
+    const voice = chooseTurkishVoice();
+    if (!voice) {
+      setDurum("Bu cihazda Türkçe okuma sesi bulunamadı.", "uyari");
+      return;
+    }
+
+    if (firstThisSyllable) {
+      if (!spendStar()) return;
+      dinlenenler.add(sira);
+      updateListenBadge();
+    }
+
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(hedef());
+    u.lang = "tr-TR";
+    u.rate = .8;
+    u.voice = voice;
+    u.onstart = () => { speaking = true; updateLocks(); };
+    u.onend = u.onerror = () => { speaking = false; updateLocks(); };
+    speaking = true;
+    updateLocks();
+    window.speechSynthesis.speak(u);
+  }
+
+  function renderRewardPhoto() {
+    if (rewardPhoto) {
+      odulFoto.src = rewardPhoto;
+      odulFoto.hidden = false;
+      odulFotoYerine.hidden = true;
+      fotoSecBtn.textContent = "Ödül fotoğrafını değiştir";
+      odulFotoDegistir.textContent = "Fotoğrafı değiştir";
+    } else {
+      odulFoto.removeAttribute("src");
+      odulFoto.hidden = true;
+      odulFotoYerine.hidden = false;
+      fotoSecBtn.textContent = "Ödül fotoğrafını seç";
+      odulFotoDegistir.textContent = "Fotoğraf ekle";
+    }
+  }
+
+  function fotoSec() {
+    if (listening || speaking) return;
+    fotoInput.value = "";
+    fotoInput.click();
+  }
+
+  function compressPhoto(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !file.type.startsWith("image/")) {
+        reject(new Error("image"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("decode"));
+        img.onload = () => {
+          const side = Math.min(img.naturalWidth, img.naturalHeight);
+          const sx = Math.max(0, (img.naturalWidth - side) / 2);
+          const sy = Math.max(0, (img.naturalHeight - side) / 2);
+          const size = Math.min(720, side);
+          const c = document.createElement("canvas");
+          c.width = size;
+          c.height = size;
+          const cctx = c.getContext("2d", { alpha: false });
+          cctx.fillStyle = "#fff";
+          cctx.fillRect(0, 0, size, size);
+          cctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+          try {
+            resolve(c.toDataURL("image/jpeg", .82));
+          } catch (_) {
+            reject(new Error("encode"));
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function onPhotoSelected() {
+    const file = fotoInput.files && fotoInput.files[0];
+    if (!file) return;
+    try {
+      const data = await compressPhoto(file);
+      rewardPhoto = data;
+      const saved = safeWrite(LS_REWARD_PHOTO, rewardPhoto);
+      renderRewardPhoto();
+      setDurum(saved ? "Ödül fotoğrafı hazır!" : "Fotoğraf bu oturumda hazır. Cihazda kalıcı saklanamadı.", saved ? "dogru" : "uyari");
+    } catch (_) {
+      setDurum("Bu fotoğraf açılamadı. Başka bir fotoğraf seç.", "uyari");
+    }
+  }
+
+  function endRound() {
+    oncekiTurSonu = tur.at(-1);
+    const remaining = CIKARTMALAR.filter(x => !stickers.includes(x));
+    let won;
+    if (remaining.length) {
+      won = remaining[Math.floor(Math.random() * remaining.length)];
+      stickers.push(won);
+      safeWrite(LS_STICKERS, stickers);
+      odulMesaj.textContent = "Yeni bir çıkartma kazandın!";
+    } else {
+      won = CIKARTMALAR[Math.floor(Math.random() * CIKARTMALAR.length)];
+      odulMesaj.textContent = "Tüm çıkartmaları topladın!";
+    }
+    sonKazanilan = won;
+    renderStickerCounter();
+    buyukCikartma.textContent = won;
+    cikartmaRafi.textContent = stickers.join(" ") || won;
+    renderRewardPhoto();
+    odulEkrani.hidden = false;
+    playFanfare();
+    confetti(70);
+  }
+
+  mikrofonBtn.addEventListener("click", startListening);
+  dinleBtn.addEventListener("click", listenSyllable);
+  yeniTurBtn.addEventListener("click", yeniTur);
+  fotoSecBtn.addEventListener("click", fotoSec);
+  odulFotoDegistir.addEventListener("click", fotoSec);
+  fotoInput.addEventListener("change", onPhotoSelected);
+
+  if (!window.speechSynthesis) {
+    dinleBtn.style.display = "none";
+    maliyetEl.style.display = "none";
+  } else {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener?.("voiceschanged", () => window.speechSynthesis.getVoices());
+  }
+
+  window.addEventListener("resize", () => drawCard(currentCorrect));
+  const mediaDark = matchMedia("(prefers-color-scheme: dark)");
+  mediaDark.addEventListener?.("change", () => drawCard(currentCorrect));
+
+  renderRewardPhoto();
+  yeniTur();
+  setupRecognition();
+  document.fonts?.ready?.then(() => drawCard(currentCorrect));
+
+  // Kabul örnekleri geliştirici konsolunda otomatik kontrol edilir.
+  const failures = matcherSelfTests();
+  if (failures.length) console.warn("Eşleştirme kabul testleri başarısız:", failures);
+  else console.info("Eşleştirme kabul testleri: tüm örnekler geçti.");
+
+  // İstenirse tarayıcı konsolundan yeniden çalıştırılabilir.
+  window.HeceOkumaTest = () => matcherSelfTests();
+})();
+</script>
+</body>
+</html>
